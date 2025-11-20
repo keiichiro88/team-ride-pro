@@ -247,9 +247,16 @@ export default function App() {
     setAssignments(newAssignments);
   };
   const toggleParticipation = (id) => {
-    setMembers(members.map(m =>
-      m.id === id ? { ...m, participating: !m.participating } : m
-    ));
+    console.log('toggleParticipation called with id:', id);
+    const updatedMembers = members.map(m => {
+      if (m.id === id) {
+        console.log('Toggling member:', m.name, 'from', m.participating, 'to', !m.participating);
+        return { ...m, participating: !m.participating };
+      }
+      return m;
+    });
+    console.log('Updated members:', updatedMembers);
+    setMembers(updatedMembers);
   };
   const addCar = () => {
     if (!newCarOwner.trim()) return;
@@ -403,24 +410,38 @@ export default function App() {
                     key={member.id}
                     draggable={member.participating}
                     onDragStart={(e) => member.participating && handleDragStart(e, member.id, null)}
-                    className={`px-3 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all ${
+                    className={`px-2 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-1 transition-all ${
                       member.participating
                         ? 'cursor-grab active:cursor-grabbing bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:-translate-y-0.5'
-                        : 'bg-slate-200 border border-slate-300 text-slate-500 opacity-60 cursor-not-allowed'
+                        : 'bg-slate-200 border border-slate-300 text-slate-500 opacity-60'
                     }`}
-                    title={member.participating ? '' : '不参加（設定タブで変更できます）'}
                   >
-                    {member.participating ? (
-                      <GripVertical className="w-3 h-3 text-slate-300" />
-                    ) : (
-                      <UserMinus className="w-3 h-3 text-slate-400" />
-                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        e.preventDefault();
+                        toggleParticipation(member.id);
+                      }}
+                      className={`p-1 rounded transition-colors ${
+                        member.participating
+                          ? 'hover:bg-orange-100 text-slate-400 hover:text-orange-600'
+                          : 'hover:bg-slate-300 text-slate-500 hover:text-slate-600'
+                      }`}
+                      title={member.participating ? 'クリックで不参加にする' : 'クリックで参加にする'}
+                    >
+                      {member.participating ? (
+                        <GripVertical className="w-3 h-3" />
+                      ) : (
+                        <UserMinus className="w-3 h-3" />
+                      )}
+                    </button>
                     <span className={member.participating ? '' : 'line-through'}>{member.name}</span>
                   </div>
                 ))}
               </div>
               <p className="text-xs text-slate-400 mt-4 text-center">
-                メンバーをドラッグして下の車に入れてください
+                メンバーをドラッグして下の車に入れてください / アイコンクリックで参加/不参加を切替
               </p>
             </div>
 
@@ -610,7 +631,11 @@ export default function App() {
                     }`}>
                         <div className="flex items-center gap-2 flex-1">
                           <button
-                            onClick={() => toggleParticipation(m.id)}
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleParticipation(m.id);
+                            }}
                             className={`transition-colors ${
                               m.participating
                                 ? 'text-green-600 hover:text-green-700'
