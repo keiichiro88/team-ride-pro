@@ -60,7 +60,7 @@ export default function App() {
     { id: 7, name: '谷口瑛汰' }, { id: 8, name: '三宅敏京' }, { id: 9, name: '田中彪翔' },
     { id: 10, name: '田中彪輝' }, { id: 11, name: '宮崎絃' }, { id: 12, name: '彌永和史' },
     { id: 13, name: '梶原悠生' }, { id: 14, name: '三苫裕翔' }, { id: 15, name: '三苫蓮' },
-    { id: 16, name: '溝野翠葉' },
+    { id: 16, name: '溝野翠葉' }, { id: 17, name: '林佑樹' }, { id: 18, name: '川内琉太郎' },
   ]);
   const [cars, setCars] = useState([
     { id: 1, owner: '佐藤ママ', capacity: 7, note: 'ミニバン' },
