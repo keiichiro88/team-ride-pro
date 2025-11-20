@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Clock, Megaphone, Backpack, Save, Upload, GripVertical, Check } from 'lucide-react';
+import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Clock, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus } from 'lucide-react';
 
 // --- 車種別アイコン (High Quality SVGs) ---
 const CarIconMiniVan = () => (
@@ -55,12 +55,12 @@ const CarIconKCar = () => (
 export default function App() {
   // --- State Management ---
   const [members, setMembers] = useState([
-    { id: 1, name: '鋤柄大河' }, { id: 2, name: '阿南央哉' }, { id: 3, name: '阿南空希' },
-    { id: 4, name: '小田瑛翔' }, { id: 5, name: '蒲池心絆' }, { id: 6, name: '谷口煌汰' },
-    { id: 7, name: '谷口瑛汰' }, { id: 8, name: '三宅敏京' }, { id: 9, name: '田中彪翔' },
-    { id: 10, name: '田中彪輝' }, { id: 11, name: '宮崎絃' }, { id: 12, name: '彌永和史' },
-    { id: 13, name: '梶原悠生' }, { id: 14, name: '三苫裕翔' }, { id: 15, name: '三苫蓮' },
-    { id: 16, name: '溝野翠葉' }, { id: 17, name: '林佑樹' }, { id: 18, name: '川内琉太郎' },
+    { id: 1, name: '鋤柄大河', participating: true }, { id: 2, name: '阿南央哉', participating: true }, { id: 3, name: '阿南空希', participating: true },
+    { id: 4, name: '小田瑛翔', participating: true }, { id: 5, name: '蒲池心絆', participating: true }, { id: 6, name: '谷口煌汰', participating: true },
+    { id: 7, name: '谷口瑛汰', participating: true }, { id: 8, name: '三宅敏京', participating: true }, { id: 9, name: '田中彪翔', participating: true },
+    { id: 10, name: '田中彪輝', participating: true }, { id: 11, name: '宮崎絃', participating: true }, { id: 12, name: '彌永和史', participating: true },
+    { id: 13, name: '梶原悠生', participating: true }, { id: 14, name: '三苫裕翔', participating: true }, { id: 15, name: '三苫蓮', participating: true },
+    { id: 16, name: '溝野翠葉', participating: true }, { id: 17, name: '林佑樹', participating: true }, { id: 18, name: '川内琉太郎', participating: true },
   ]);
   const [cars, setCars] = useState([
     { id: 1, owner: '佐藤ママ', capacity: 7, note: 'ミニバン' },
@@ -96,7 +96,14 @@ export default function App() {
     if (savedData) {
       try {
         const parsed = JSON.parse(savedData);
-        if (parsed.members) setMembers(parsed.members);
+        // 古いデータとの互換性を保つため、participatingフラグがない場合はtrueを設定
+        if (parsed.members) {
+          const updatedMembers = parsed.members.map(m => ({
+            ...m,
+            participating: m.participating !== undefined ? m.participating : true
+          }));
+          setMembers(updatedMembers);
+        }
         if (parsed.cars) setCars(parsed.cars);
         if (parsed.assignments) setAssignments(parsed.assignments);
         if (parsed.eventDate) setEventDate(parsed.eventDate);
@@ -227,7 +234,7 @@ export default function App() {
   const addMember = () => {
     if (!newMemberName.trim()) return;
     const newId = Date.now(); // Unique ID
-    setMembers([...members, { id: newId, name: newMemberName }]);
+    setMembers([...members, { id: newId, name: newMemberName, participating: true }]);
     setNewMemberName('');
   };
   const deleteMember = (id) => {
@@ -238,6 +245,11 @@ export default function App() {
       newAssignments[carId] = newAssignments[carId].filter(mid => mid !== id);
     });
     setAssignments(newAssignments);
+  };
+  const toggleParticipation = (id) => {
+    setMembers(members.map(m =>
+      m.id === id ? { ...m, participating: !m.participating } : m
+    ));
   };
   const addCar = () => {
     if (!newCarOwner.trim()) return;
@@ -389,12 +401,21 @@ export default function App() {
                 {unassignedMembers.map(member => (
                   <div
                     key={member.id}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, member.id, null)}
-                    className="cursor-grab active:cursor-grabbing bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 px-3 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all hover:-translate-y-0.5"
+                    draggable={member.participating}
+                    onDragStart={(e) => member.participating && handleDragStart(e, member.id, null)}
+                    className={`px-3 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-2 transition-all ${
+                      member.participating
+                        ? 'cursor-grab active:cursor-grabbing bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:-translate-y-0.5'
+                        : 'bg-slate-200 border border-slate-300 text-slate-500 opacity-60 cursor-not-allowed'
+                    }`}
+                    title={member.participating ? '' : '不参加（設定タブで変更できます）'}
                   >
-                    <GripVertical className="w-3 h-3 text-slate-300" />
-                    {member.name}
+                    {member.participating ? (
+                      <GripVertical className="w-3 h-3 text-slate-300" />
+                    ) : (
+                      <UserMinus className="w-3 h-3 text-slate-400" />
+                    )}
+                    <span className={member.participating ? '' : 'line-through'}>{member.name}</span>
                   </div>
                 ))}
               </div>
@@ -440,15 +461,24 @@ export default function App() {
                             return (
                                 <div
                                     key={memberId}
-                                    draggable
-                                    onDragStart={(e) => handleDragStart(e, memberId, car.id)}
-                                    className="cursor-grab active:cursor-grabbing bg-white px-3 py-2.5 rounded-xl text-sm font-bold text-slate-700 border border-slate-100 shadow-sm flex justify-between items-center"
+                                    draggable={mem.participating}
+                                    onDragStart={(e) => mem.participating && handleDragStart(e, memberId, car.id)}
+                                    className={`px-3 py-2.5 rounded-xl text-sm font-bold border shadow-sm flex justify-between items-center ${
+                                      mem.participating
+                                        ? 'cursor-grab active:cursor-grabbing bg-white text-slate-700 border-slate-100'
+                                        : 'bg-slate-100 text-slate-500 border-slate-200 opacity-60 cursor-not-allowed'
+                                    }`}
+                                    title={mem.participating ? '' : '不参加メンバー'}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px]">
-                                            {mem.name.charAt(0)}
+                                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${
+                                          mem.participating
+                                            ? 'bg-blue-100 text-blue-600'
+                                            : 'bg-slate-200 text-slate-500'
+                                        }`}>
+                                            {mem.participating ? mem.name.charAt(0) : '×'}
                                         </div>
-                                        {mem.name}
+                                        <span className={mem.participating ? '' : 'line-through'}>{mem.name}</span>
                                     </div>
                                     <button onClick={() => {
                                         // Manual Remove
@@ -573,9 +603,30 @@ export default function App() {
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {members.map(m => (
-                    <div key={m.id} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
-                        <span className="text-sm font-bold text-slate-700">{m.name}</span>
-                        <button onClick={() => deleteMember(m.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                    <div key={m.id} className={`flex justify-between items-center px-3 py-2 rounded-lg transition-all ${
+                      m.participating
+                        ? 'bg-slate-50 border border-slate-200'
+                        : 'bg-slate-200 border border-slate-300 opacity-60'
+                    }`}>
+                        <div className="flex items-center gap-2 flex-1">
+                          <button
+                            onClick={() => toggleParticipation(m.id)}
+                            className={`transition-colors ${
+                              m.participating
+                                ? 'text-green-600 hover:text-green-700'
+                                : 'text-slate-400 hover:text-slate-500'
+                            }`}
+                            title={m.participating ? '参加中（クリックで不参加に）' : '不参加（クリックで参加に）'}
+                          >
+                            {m.participating ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
+                          </button>
+                          <span className={`text-sm font-bold ${m.participating ? 'text-slate-700' : 'text-slate-500 line-through'}`}>
+                            {m.name}
+                          </span>
+                        </div>
+                        <button onClick={() => deleteMember(m.id)} className="text-slate-300 hover:text-red-500">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                     </div>
                 ))}
               </div>
