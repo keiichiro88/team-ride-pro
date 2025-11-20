@@ -724,10 +724,13 @@ export default function App() {
                       const isToday = dateStr === new Date().toISOString().split('T')[0];
                       const dayOfWeek = date.getDay();
 
+                      // Filter events for this day
+                      const dayEvents = calendarEvents.filter(event => event.date === dateStr);
+
                       days.push(
                         <div
                           key={day}
-                          className={`aspect-square p-1 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                          className={`aspect-square p-1 rounded-lg border transition-all hover:shadow-md ${
                             isToday
                               ? 'bg-blue-100 border-blue-300 font-bold'
                               : 'bg-white border-slate-200 hover:bg-slate-50'
@@ -743,6 +746,32 @@ export default function App() {
                             }`}
                           >
                             {day}
+                          </div>
+
+                          {/* Display events */}
+                          <div className="mt-1 space-y-0.5 overflow-y-auto max-h-16">
+                            {dayEvents.map(event => {
+                              const eventColor =
+                                event.type === 'practice' ? 'bg-blue-500' :
+                                event.type === 'tournament' ? 'bg-red-500' :
+                                'bg-gray-500';
+
+                              return (
+                                <div
+                                  key={event.id}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setEditingEvent(event);
+                                    setEventFormData(event);
+                                    setShowEventModal(true);
+                                  }}
+                                  className={`${eventColor} text-white text-[10px] px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity truncate`}
+                                  title={event.title}
+                                >
+                                  {event.title}
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
