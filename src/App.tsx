@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Clock, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus } from 'lucide-react';
+import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Clock, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
 
 // --- 車種別アイコン (High Quality SVGs) ---
 const CarIconMiniVan = () => (
@@ -76,6 +76,12 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState('allocation');
 
+  // Calendar States
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [editingEvent, setEditingEvent] = useState(null);
+
   // Input Temporary States
   const [tempScheduleTime, setTempScheduleTime] = useState('');
   const [tempScheduleContent, setTempScheduleContent] = useState('');
@@ -111,6 +117,7 @@ export default function App() {
         if (parsed.scheduleItems) setScheduleItems(parsed.scheduleItems);
         if (parsed.eventNotes) setEventNotes(parsed.eventNotes);
         if (parsed.eventItems) setEventItems(parsed.eventItems);
+        if (parsed.calendarEvents) setCalendarEvents(parsed.calendarEvents);
       } catch (e) {
         console.error("Data Load Error", e);
       }
@@ -119,15 +126,15 @@ export default function App() {
 
   useEffect(() => {
     const dataToSave = {
-      members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems
+      members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents
     };
     localStorage.setItem('teamRideDataPro', JSON.stringify(dataToSave));
-  }, [members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems]);
+  }, [members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents]);
 
   // --- Backup & Restore Functions ---
   const exportData = () => {
     const dataStr = JSON.stringify({
-      members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems
+      members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents
     }, null, 2);
     const blob = new Blob([dataStr], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -155,6 +162,7 @@ export default function App() {
           setScheduleItems(parsed.scheduleItems || []);
           setEventNotes(parsed.eventNotes || '');
           setEventItems(parsed.eventItems || '');
+          setCalendarEvents(parsed.calendarEvents || []);
           alert('復元が完了しました');
         }
       } catch (err) {
@@ -349,6 +357,7 @@ export default function App() {
           {[
             { id: 'allocation', icon: Car, label: '配車' },
             { id: 'schedule', icon: Clock, label: '予定' },
+            { id: 'calendar', icon: Calendar, label: 'カレンダー' },
             { id: 'share', icon: Share2, label: '共有' },
             { id: 'settings', icon: Settings, label: '設定' },
           ].map(tab => (
@@ -581,6 +590,122 @@ export default function App() {
                     </h2>
                     <textarea value={eventItems} onChange={(e) => setEventItems(e.target.value)} className="w-full h-32 bg-slate-50 border-0 rounded-xl p-4 focus:ring-2 focus:ring-pink-200 resize-none text-sm text-slate-700" placeholder="・お弁当&#13;&#10;・水筒" />
                 </div>
+            </div>
+          </div>
+        )}
+
+        {/* === CALENDAR TAB === */}
+        {activeTab === 'calendar' && (
+          <div className="space-y-6 animate-fadeIn">
+            {/* Calendar Header */}
+            <div className="bg-white p-5 rounded-3xl shadow-sm border border-slate-100">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="font-bold text-lg flex items-center gap-2 text-slate-800">
+                  <div className="bg-purple-100 p-2 rounded-lg text-purple-600"><Calendar className="w-5 h-5" /></div>
+                  カレンダー
+                </h2>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const newMonth = new Date(currentMonth);
+                      newMonth.setMonth(currentMonth.getMonth() - 1);
+                      setCurrentMonth(newMonth);
+                    }}
+                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <ChevronLeft className="w-5 h-5 text-slate-600" />
+                  </button>
+                  <h3 className="font-bold text-slate-700 min-w-[120px] text-center">
+                    {currentMonth.getFullYear()}年 {currentMonth.getMonth() + 1}月
+                  </h3>
+                  <button
+                    onClick={() => {
+                      const newMonth = new Date(currentMonth);
+                      newMonth.setMonth(currentMonth.getMonth() + 1);
+                      setCurrentMonth(newMonth);
+                    }}
+                    className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
+                  >
+                    <ChevronRight className="w-5 h-5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Calendar Grid */}
+              <div className="bg-slate-50 rounded-2xl p-4">
+                {/* Weekday Headers */}
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['日', '月', '火', '水', '木', '金', '土'].map((day, i) => (
+                    <div
+                      key={day}
+                      className={`text-center text-xs font-bold py-2 ${
+                        i === 0 ? 'text-red-500' : i === 6 ? 'text-blue-500' : 'text-slate-600'
+                      }`}
+                    >
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Calendar Days */}
+                <div className="grid grid-cols-7 gap-1">
+                  {(() => {
+                    const year = currentMonth.getFullYear();
+                    const month = currentMonth.getMonth();
+                    const firstDay = new Date(year, month, 1).getDay();
+                    const daysInMonth = new Date(year, month + 1, 0).getDate();
+                    const days = [];
+
+                    // Empty cells for days before month starts
+                    for (let i = 0; i < firstDay; i++) {
+                      days.push(
+                        <div key={`empty-${i}`} className="aspect-square p-1"></div>
+                      );
+                    }
+
+                    // Days of the month
+                    for (let day = 1; day <= daysInMonth; day++) {
+                      const date = new Date(year, month, day);
+                      const dateStr = date.toISOString().split('T')[0];
+                      const isToday = dateStr === new Date().toISOString().split('T')[0];
+                      const dayOfWeek = date.getDay();
+
+                      days.push(
+                        <div
+                          key={day}
+                          className={`aspect-square p-1 rounded-lg border transition-all cursor-pointer hover:shadow-md ${
+                            isToday
+                              ? 'bg-blue-100 border-blue-300 font-bold'
+                              : 'bg-white border-slate-200 hover:bg-slate-50'
+                          }`}
+                        >
+                          <div
+                            className={`text-xs font-bold ${
+                              dayOfWeek === 0
+                                ? 'text-red-500'
+                                : dayOfWeek === 6
+                                ? 'text-blue-500'
+                                : 'text-slate-700'
+                            }`}
+                          >
+                            {day}
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return days;
+                  })()}
+                </div>
+              </div>
+
+              <button
+                onClick={() => setShowEventModal(true)}
+                className="w-full mt-4 bg-purple-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+              >
+                <Plus className="w-5 h-5" />
+                イベントを追加
+              </button>
             </div>
           </div>
         )}
