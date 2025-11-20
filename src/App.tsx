@@ -82,6 +82,18 @@ export default function App() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
 
+  // Event Form States
+  const [eventFormData, setEventFormData] = useState({
+    title: '',
+    date: '',
+    startTime: '',
+    endTime: '',
+    type: 'practice', // practice, tournament, other
+    isRecurring: false,
+    recurringDays: [], // [0-6] 0=Sunday
+    note: ''
+  });
+
   // Input Temporary States
   const [tempScheduleTime, setTempScheduleTime] = useState('');
   const [tempScheduleContent, setTempScheduleContent] = useState('');
@@ -289,6 +301,48 @@ export default function App() {
     setTempScheduleContent('');
   };
   const removeScheduleItem = (id) => setScheduleItems(scheduleItems.filter(i => i.id !== id));
+
+  // Calendar Event Operations
+  const saveEvent = () => {
+    if (!eventFormData.title || !eventFormData.date) {
+      alert('タイトルと日付は必須です');
+      return;
+    }
+
+    if (editingEvent) {
+      // 編集モード
+      setCalendarEvents(calendarEvents.map(e =>
+        e.id === editingEvent.id ? { ...eventFormData, id: e.id } : e
+      ));
+    } else {
+      // 新規追加
+      const newEvent = {
+        ...eventFormData,
+        id: Date.now()
+      };
+      setCalendarEvents([...calendarEvents, newEvent]);
+    }
+
+    // フォームをリセット
+    setEventFormData({
+      title: '',
+      date: '',
+      startTime: '',
+      endTime: '',
+      type: 'practice',
+      isRecurring: false,
+      recurringDays: [],
+      note: ''
+    });
+    setShowEventModal(false);
+    setEditingEvent(null);
+  };
+
+  const deleteEvent = (id) => {
+    if (window.confirm('このイベントを削除しますか？')) {
+      setCalendarEvents(calendarEvents.filter(e => e.id !== id));
+    }
+  };
 
   // Reports
   const generateReport = () => {
@@ -834,6 +888,110 @@ export default function App() {
                </div>
             </div>
 
+          </div>
+        )}
+
+        {/* Event Modal */}
+        {showEventModal && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEventModal(false)}>
+            <div className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-bold text-slate-800">イベント追加</h3>
+                <button onClick={() => setShowEventModal(false)} className="text-slate-400 hover:text-slate-600">
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* タイトル */}
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">タイトル *</label>
+                  <input
+                    type="text"
+                    value={eventFormData.title}
+                    onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                    placeholder="例: 練習試合"
+                  />
+                </div>
+
+                {/* イベントタイプ */}
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">種類</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { value: 'practice', label: '練習', color: 'bg-blue-100 text-blue-700 border-blue-300' },
+                      { value: 'tournament', label: '大会', color: 'bg-red-100 text-red-700 border-red-300' },
+                      { value: 'other', label: 'その他', color: 'bg-slate-100 text-slate-700 border-slate-300' }
+                    ].map(type => (
+                      <button
+                        key={type.value}
+                        type="button"
+                        onClick={() => setEventFormData({ ...eventFormData, type: type.value })}
+                        className={`py-2 px-3 rounded-lg border-2 text-xs font-bold transition-all ${
+                          eventFormData.type === type.value ? type.color : 'bg-white text-slate-400 border-slate-200'
+                        }`}
+                      >
+                        {type.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* 日付 */}
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">日付 *</label>
+                  <input
+                    type="date"
+                    value={eventFormData.date}
+                    onChange={(e) => setEventFormData({ ...eventFormData, date: e.target.value })}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                  />
+                </div>
+
+                {/* 時間 */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">開始時間</label>
+                    <input
+                      type="time"
+                      value={eventFormData.startTime}
+                      onChange={(e) => setEventFormData({ ...eventFormData, startTime: e.target.value })}
+                      className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">終了時間</label>
+                    <input
+                      type="time"
+                      value={eventFormData.endTime}
+                      onChange={(e) => setEventFormData({ ...eventFormData, endTime: e.target.value })}
+                      className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+                </div>
+
+                {/* メモ */}
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">メモ</label>
+                  <textarea
+                    value={eventFormData.note}
+                    onChange={(e) => setEventFormData({ ...eventFormData, note: e.target.value })}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200 resize-none"
+                    rows="3"
+                    placeholder="場所や持ち物など"
+                  />
+                </div>
+
+                {/* 保存ボタン */}
+                <button
+                  onClick={saveEvent}
+                  className="w-full bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors"
+                >
+                  保存
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
