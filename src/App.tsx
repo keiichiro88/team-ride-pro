@@ -78,8 +78,7 @@ export default function App() {
     { id: 16, name: '溝野翠葉', participating: true }, { id: 17, name: '林佑樹', participating: true }, { id: 18, name: '川内琉太郎', participating: true },
   ]);
   const [cars, setCars] = useState([
-    { id: 1, owner: '佐藤ママ', capacity: 7, note: 'ミニバン' },
-    { id: 2, owner: '鈴木パパ', capacity: 5, note: '乗用車' },
+    { id: 1, owner: '田中パパ', capacity: 5, note: '乗用車' },
   ]);
   const [assignments, setAssignments] = useState({});
 
