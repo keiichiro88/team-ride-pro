@@ -1,6 +1,8 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
 import { Car, Users, Share2, Plus, Trash2, X, ClipboardCheck, Settings, RotateCcw, Calendar, Save, Upload, GripVertical, Check, UserMinus, UserCheck, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { ref, onValue, set, update } from 'firebase/database';
+import { database } from './firebase';
 import Login from './Login';
 
 // --- 車種別アイコン (High Quality SVGs) ---
@@ -128,17 +130,114 @@ export default function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState(null);
 
-  // --- Persistence (Auto Save/Load) ---
+  // --- Firebase Realtime Database統合 ---
+  // ログイン後にFirebaseからデータを読み込み、リアルタイム同期を開始
+  useEffect(() => {
+    if (!userRole) return; // ログインしていない場合は何もしない
+
+    console.log('🔥 Firebase同期開始...');
+
+    // メンバーデータの同期
+    const membersRef = ref(database, 'teamData/members');
+    const unsubscribeMembers = onValue(membersRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        console.log('📥 Firebaseからメンバーデータを受信:', data);
+        const updatedMembers = data.map(m => ({
+          ...m,
+          participating: m.participating !== undefined ? m.participating : true
+        }));
+        setMembers(updatedMembers);
+      }
+    });
+
+    // 車両データの同期
+    const carsRef = ref(database, 'teamData/cars');
+    const unsubscribeCars = onValue(carsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        console.log('📥 Firebaseから車両データを受信:', data);
+        setCars(data);
+      }
+    });
+
+    // カレンダーイベントの同期
+    const eventsRef = ref(database, 'teamData/calendarEvents');
+    const unsubscribeEvents = onValue(eventsRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        console.log('📥 Firebaseからイベントデータを受信:', data);
+        setCalendarEvents(data);
+      }
+    });
+
+    // クリーンアップ関数
+    return () => {
+      unsubscribeMembers();
+      unsubscribeCars();
+      unsubscribeEvents();
+      console.log('🔌 Firebase同期を停止');
+    };
+  }, [userRole]);
+
+  // データ変更時にFirebaseに保存（管理者のみ）
+  useEffect(() => {
+    if (!userRole || userRole !== 'admin') return; // 管理者のみ保存可能
+
+    // 初回マウント時は保存しない
+    if (members.length === 0 && cars.length === 0 && calendarEvents.length === 0) return;
+
+    console.log('💾 Firebaseにデータを保存中...');
+
+    // メンバーデータを保存
+    if (members.length > 0) {
+      const membersRef = ref(database, 'teamData/members');
+      set(membersRef, members).then(() => {
+        console.log('✅ メンバーデータを保存しました');
+      }).catch((error) => {
+        console.error('❌ メンバーデータの保存に失敗:', error);
+      });
+    }
+
+    // 車両データを保存
+    if (cars.length > 0) {
+      const carsRef = ref(database, 'teamData/cars');
+      set(carsRef, cars).then(() => {
+        console.log('✅ 車両データを保存しました');
+      }).catch((error) => {
+        console.error('❌ 車両データの保存に失敗:', error);
+      });
+    }
+
+    // カレンダーイベントを保存
+    if (calendarEvents.length > 0) {
+      const eventsRef = ref(database, 'teamData/calendarEvents');
+      set(eventsRef, calendarEvents).then(() => {
+        console.log('✅ イベントデータを保存しました');
+      }).catch((error) => {
+        console.error('❌ イベントデータの保存に失敗:', error);
+      });
+    }
+
+    // LocalStorageにもバックアップ（オフライン対応）
+    const dataToSave = {
+      members, cars, calendarEvents
+    };
+    localStorage.setItem('teamRideDataPro', JSON.stringify(dataToSave));
+  }, [members, cars, calendarEvents, userRole]);
+
+  // 初回起動時: LocalStorageからデータを読み込み（Firebaseが空の場合の初期データとして）
   useEffect(() => {
     if (!eventDate) {
       const today = formatLocalDate(new Date());
       setEventDate(today);
     }
+
+    // LocalStorageからデータを読み込み（オフライン時やFirebaseが空の場合の予備）
     const savedData = localStorage.getItem('teamRideDataPro');
-    if (savedData) {
+    if (savedData && !userRole) { // ログイン前のみLocalStorageから読み込む
       try {
         const parsed = JSON.parse(savedData);
-        // 古いデータとの互換性を保つため、participatingフラグがない場合はtrueを設定
         if (parsed.members) {
           const updatedMembers = parsed.members.map(m => ({
             ...m,
@@ -147,25 +246,12 @@ export default function App() {
           setMembers(updatedMembers);
         }
         if (parsed.cars) setCars(parsed.cars);
-        if (parsed.assignments) setAssignments(parsed.assignments);
-        if (parsed.eventDate) setEventDate(parsed.eventDate);
-        if (parsed.eventName) setEventName(parsed.eventName);
-        if (parsed.scheduleItems) setScheduleItems(parsed.scheduleItems);
-        if (parsed.eventNotes) setEventNotes(parsed.eventNotes);
-        if (parsed.eventItems) setEventItems(parsed.eventItems);
         if (parsed.calendarEvents) setCalendarEvents(parsed.calendarEvents);
       } catch (e) {
-        console.error("Data Load Error", e);
+        console.error("LocalStorageからのデータ読み込みエラー", e);
       }
     }
   }, []);
-
-  useEffect(() => {
-    const dataToSave = {
-      members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents
-    };
-    localStorage.setItem('teamRideDataPro', JSON.stringify(dataToSave));
-  }, [members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents]);
 
   // --- Backup & Restore Functions ---
   const exportData = () => {
@@ -670,12 +756,13 @@ export default function App() {
                                 <div
                                   key={event.id}
                                   onClick={(e) => {
+                                    if (!isAdmin) return; // 閲覧者は編集不可
                                     e.stopPropagation();
                                     setEditingEvent(event);
                                     setEventFormData(event);
                                     setShowEventModal(true);
                                   }}
-                                  className={`${eventColor} text-white text-[10px] px-1 py-0.5 rounded cursor-pointer hover:opacity-80 transition-opacity truncate`}
+                                  className={`${eventColor} text-white text-[10px] px-1 py-0.5 rounded ${isAdmin ? 'cursor-pointer hover:opacity-80' : 'cursor-default'} transition-opacity truncate`}
                                   title={event.title}
                                 >
                                   {event.title}
@@ -692,13 +779,15 @@ export default function App() {
                 </div>
               </div>
 
-              <button
-                onClick={() => setShowEventModal(true)}
-                className="w-full mt-4 bg-purple-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
-              >
-                <Plus className="w-5 h-5" />
-                イベントを追加
-              </button>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowEventModal(true)}
+                  className="w-full mt-4 bg-purple-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-purple-200 hover:bg-purple-600 transition-colors flex items-center justify-center gap-2"
+                >
+                  <Plus className="w-5 h-5" />
+                  イベントを追加
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -849,11 +938,13 @@ export default function App() {
                 <div className="bg-indigo-100 p-2 rounded-lg text-indigo-600"><Users className="w-5 h-5" /></div>
                 メンバー管理
               </h2>
-              <div className="flex gap-2 mb-4">
-                <input type="text" placeholder="名前" className="flex-1 bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-200"
-                  value={newMemberName} onChange={(e) => setNewMemberName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addMember()} />
-                <button onClick={addMember} className="bg-indigo-600 text-white w-12 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center"><Plus className="w-6 h-6" /></button>
-              </div>
+              {isAdmin && (
+                <div className="flex gap-2 mb-4">
+                  <input type="text" placeholder="名前" className="flex-1 bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-indigo-200"
+                    value={newMemberName} onChange={(e) => setNewMemberName(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && addMember()} />
+                  <button onClick={addMember} className="bg-indigo-600 text-white w-12 rounded-xl shadow-lg shadow-indigo-200 flex items-center justify-center"><Plus className="w-6 h-6" /></button>
+                </div>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 {members.map(m => (
                     <div key={m.id} className={`flex justify-between items-center px-3 py-2 rounded-lg transition-all ${
@@ -862,28 +953,36 @@ export default function App() {
                         : 'bg-slate-200 border border-slate-300 opacity-60'
                     }`}>
                         <div className="flex items-center gap-2 flex-1">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              toggleParticipation(m.id);
-                            }}
-                            className={`transition-colors ${
-                              m.participating
-                                ? 'text-green-600 hover:text-green-700'
-                                : 'text-slate-400 hover:text-slate-500'
-                            }`}
-                            title={m.participating ? '参加中（クリックで不参加に）' : '不参加（クリックで参加に）'}
-                          >
-                            {m.participating ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
-                          </button>
+                          {isAdmin ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleParticipation(m.id);
+                              }}
+                              className={`transition-colors ${
+                                m.participating
+                                  ? 'text-green-600 hover:text-green-700'
+                                  : 'text-slate-400 hover:text-slate-500'
+                              }`}
+                              title={m.participating ? '参加中（クリックで不参加に）' : '不参加（クリックで参加に）'}
+                            >
+                              {m.participating ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
+                            </button>
+                          ) : (
+                            <span className={m.participating ? 'text-green-600' : 'text-slate-400'}>
+                              {m.participating ? <UserCheck className="w-4 h-4" /> : <UserMinus className="w-4 h-4" />}
+                            </span>
+                          )}
                           <span className={`text-sm font-bold ${m.participating ? 'text-slate-700' : 'text-slate-500 line-through'}`}>
                             {m.name}
                           </span>
                         </div>
-                        <button onClick={() => deleteMember(m.id)} className="text-slate-300 hover:text-red-500">
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                        {isAdmin && (
+                          <button onClick={() => deleteMember(m.id)} className="text-slate-300 hover:text-red-500">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                     </div>
                 ))}
               </div>
@@ -895,14 +994,16 @@ export default function App() {
                 <div className="bg-emerald-100 p-2 rounded-lg text-emerald-600"><Car className="w-5 h-5" /></div>
                 車両管理
               </h2>
-              <div className="grid gap-3 mb-4 bg-slate-50 p-4 rounded-2xl">
-                 <div className="flex gap-2">
-                    <input type="text" placeholder="所有者" className="flex-1 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarOwner} onChange={(e) => setNewCarOwner(e.target.value)} />
-                    <input type="number" placeholder="定員" className="w-20 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarCapacity} onChange={(e) => setNewCarCapacity(e.target.value)} />
-                 </div>
-                 <input type="text" placeholder="メモ (荷物車など)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarNote} onChange={(e) => setNewCarNote(e.target.value)} />
-                 <button onClick={addCar} className="w-full bg-emerald-500 text-white py-2 rounded-xl font-bold shadow-md shadow-emerald-200">追加</button>
-              </div>
+              {isAdmin && (
+                <div className="grid gap-3 mb-4 bg-slate-50 p-4 rounded-2xl">
+                   <div className="flex gap-2">
+                      <input type="text" placeholder="所有者" className="flex-1 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarOwner} onChange={(e) => setNewCarOwner(e.target.value)} />
+                      <input type="number" placeholder="定員" className="w-20 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarCapacity} onChange={(e) => setNewCarCapacity(e.target.value)} />
+                   </div>
+                   <input type="text" placeholder="メモ (荷物車など)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarNote} onChange={(e) => setNewCarNote(e.target.value)} />
+                   <button onClick={addCar} className="w-full bg-emerald-500 text-white py-2 rounded-xl font-bold shadow-md shadow-emerald-200">追加</button>
+                </div>
+              )}
               <div className="space-y-2">
                 {cars.map(c => (
                     <div key={c.id} className="flex justify-between items-center bg-white border border-slate-100 px-4 py-3 rounded-xl">
@@ -913,7 +1014,9 @@ export default function App() {
                                 <div className="text-xs text-slate-400">{c.capacity}人乗り {c.note}</div>
                             </div>
                         </div>
-                        <button onClick={() => deleteCar(c.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        {isAdmin && (
+                          <button onClick={() => deleteCar(c.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
+                        )}
                     </div>
                 ))}
               </div>
