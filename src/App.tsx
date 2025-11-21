@@ -402,12 +402,20 @@ export default function App() {
 
   // イベントの配車データを更新する関数
   const updateEventCarData = (eventId, updates) => {
-    setCalendarEvents(calendarEvents.map(event =>
+    const updatedEvents = calendarEvents.map(event =>
       event.id === eventId ? { ...event, ...updates } : event
-    ));
+    );
+    setCalendarEvents(updatedEvents);
+
     // 現在編集中のイベントも更新
     if (currentEventForCarAllocation && currentEventForCarAllocation.id === eventId) {
       setCurrentEventForCarAllocation({ ...currentEventForCarAllocation, ...updates });
+    }
+
+    // イベントモーダルで編集中の場合も更新
+    if (editingEvent && editingEvent.id === eventId) {
+      setEditingEvent({ ...editingEvent, ...updates });
+      setEventFormData({ ...eventFormData, ...updates });
     }
   };
 
