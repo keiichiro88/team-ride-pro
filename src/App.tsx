@@ -392,6 +392,17 @@ export default function App() {
     }
   };
 
+  // イベントの配車データを更新する関数
+  const updateEventCarData = (eventId, updates) => {
+    setCalendarEvents(calendarEvents.map(event =>
+      event.id === eventId ? { ...event, ...updates } : event
+    ));
+    // 現在編集中のイベントも更新
+    if (currentEventForCarAllocation && currentEventForCarAllocation.id === eventId) {
+      setCurrentEventForCarAllocation({ ...currentEventForCarAllocation, ...updates });
+    }
+  };
+
   // Reports
   const generateReport = () => {
     const dateObj = new Date(eventDate);
@@ -1181,44 +1192,294 @@ export default function App() {
         )}
 
         {/* Car Allocation Modal */}
-        {showCarAllocationModal && currentEventForCarAllocation && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCarAllocationModal(false)}>
-            <div className="bg-white rounded-3xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-              <div className="flex justify-between items-center mb-6">
-                <div>
-                  <h3 className="text-xl font-bold text-slate-800">{currentEventForCarAllocation.title}</h3>
-                  <p className="text-sm text-slate-500">{currentEventForCarAllocation.date} の配車</p>
-                </div>
-                <button
-                  onClick={() => setShowCarAllocationModal(false)}
-                  className="text-slate-400 hover:text-slate-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
+        {showCarAllocationModal && currentEventForCarAllocation && (() => {
+          const eventCars = currentEventForCarAllocation.cars || [];
+          const eventAssignments = currentEventForCarAllocation.assignments || {};
 
-              <div className="space-y-6">
-                {/* 簡易版配車機能 - まずは表示のみ */}
-                <div className="bg-slate-50 p-6 rounded-2xl">
-                  <p className="text-center text-slate-600">
-                    配車機能を実装中...
-                  </p>
-                  <p className="text-center text-sm text-slate-400 mt-2">
-                    このイベント専用の配車データを管理できるようになります
-                  </p>
+          // 参加メンバーの計算
+          const assignedMemberIds = Object.values(eventAssignments).flat();
+          const eventUnassignedMembers = members.filter(m => !assignedMemberIds.includes(m.id));
+
+          // イベント専用のドラッグ&ドロップハンドラー
+          const handleEventDrop = (e, targetCarId) => {
+            e.preventDefault();
+            if (!draggedMemberId) return;
+            const { memberId, fromCarId } = draggedMemberId;
+
+            const member = members.find(m => m.id === memberId);
+            if (!member || !member.participating) return;
+
+            const newAssignments = { ...eventAssignments };
+
+            // 元の車から削除
+            if (fromCarId) {
+              newAssignments[fromCarId] = (newAssignments[fromCarId] || []).filter(id => id !== memberId);
+            }
+
+            // 新しい車に追加
+            if (targetCarId) {
+              const targetCar = eventCars.find(c => c.id === targetCarId);
+              const currentMembers = newAssignments[targetCarId] || [];
+              if (currentMembers.length < targetCar.capacity) {
+                newAssignments[targetCarId] = [...currentMembers, memberId];
+              }
+            }
+
+            updateEventCarData(currentEventForCarAllocation.id, { assignments: newAssignments });
+            setDraggedMemberId(null);
+          };
+
+          return (
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCarAllocationModal(false)}>
+              <div className="bg-white rounded-3xl p-6 max-w-6xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex justify-between items-center mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-slate-800">{currentEventForCarAllocation.title}</h3>
+                    <p className="text-sm text-slate-500">{currentEventForCarAllocation.date} の配車</p>
+                  </div>
+                  <button
+                    onClick={() => setShowCarAllocationModal(false)}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
                 </div>
 
-                {/* 閉じるボタン */}
-                <button
-                  onClick={() => setShowCarAllocationModal(false)}
-                  className="w-full bg-slate-500 text-white py-3 rounded-xl font-bold hover:bg-slate-600 transition-colors"
-                >
-                  閉じる
-                </button>
+                <div className="space-y-6">
+                  {/* 待機メンバー */}
+                  <div
+                    onDragOver={handleDragOver}
+                    onDrop={(e) => handleEventDrop(e, null)}
+                    className={`bg-white p-5 rounded-3xl shadow-sm border-2 transition-colors duration-200 ${draggedMemberId ? 'border-dashed border-blue-300 bg-blue-50' : 'border-slate-100'}`}
+                  >
+                    <div className="flex justify-between items-center mb-4">
+                      <h2 className="font-bold text-slate-700 flex items-center gap-2">
+                        <div className="bg-orange-100 p-2 rounded-full text-orange-600"><Users className="w-4 h-4" /></div>
+                        待機メンバー
+                        <span className="bg-slate-100 text-slate-500 text-xs px-2 py-1 rounded-full">{eventUnassignedMembers.length}</span>
+                      </h2>
+                      <button
+                        onClick={() => {
+                          if (window.confirm('配車をリセットしますか？')) {
+                            updateEventCarData(currentEventForCarAllocation.id, { assignments: {} });
+                          }
+                        }}
+                        className="text-xs text-slate-400 hover:text-red-500 flex items-center gap-1 px-3 py-1.5 rounded-full hover:bg-slate-50"
+                      >
+                        <RotateCcw className="w-3 h-3" /> リセット
+                      </button>
+                    </div>
+
+                    <div className="flex flex-wrap gap-2 min-h-[60px]">
+                      {eventUnassignedMembers.length === 0 && !draggedMemberId && (
+                        <div className="w-full text-center text-slate-300 text-sm py-4">全員割り当て完了！</div>
+                      )}
+                      {eventUnassignedMembers.map(member => (
+                        <div
+                          key={member.id}
+                          draggable={member.participating}
+                          onDragStart={(e) => member.participating && handleDragStart(e, member.id, null)}
+                          className={`px-2 py-2 rounded-xl text-sm font-bold shadow-sm flex items-center gap-1 transition-all ${
+                            member.participating
+                              ? 'cursor-grab active:cursor-grabbing bg-white hover:bg-orange-50 border border-slate-200 hover:border-orange-200 text-slate-700 hover:-translate-y-0.5'
+                              : 'bg-slate-200 border border-slate-300 text-slate-500 opacity-60'
+                          }`}
+                        >
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              toggleParticipation(member.id);
+                            }}
+                            className={`p-1 rounded transition-colors ${
+                              member.participating
+                                ? 'hover:bg-orange-100 text-slate-400 hover:text-orange-600'
+                                : 'hover:bg-slate-300 text-slate-500 hover:text-slate-600'
+                            }`}
+                            title={member.participating ? 'クリックで不参加にする' : 'クリックで参加にする'}
+                          >
+                            {member.participating ? (
+                              <GripVertical className="w-3 h-3" />
+                            ) : (
+                              <UserMinus className="w-3 h-3" />
+                            )}
+                          </button>
+                          <span className={member.participating ? '' : 'line-through'}>{member.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="text-xs text-slate-400 mt-4 text-center">
+                      メンバーをドラッグして下の車に入れてください
+                    </p>
+                  </div>
+
+                  {/* 車の追加 */}
+                  <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 className="font-bold text-sm text-slate-700 mb-3 flex items-center gap-2">
+                      <Car className="w-4 h-4 text-blue-600" />
+                      車を追加
+                    </h3>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        placeholder="運転者名"
+                        className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarOwner-${currentEventForCarAllocation.id}`}
+                      />
+                      <select
+                        className="bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarCapacity-${currentEventForCarAllocation.id}`}
+                        defaultValue="4"
+                      >
+                        <option value="4">4人乗り</option>
+                        <option value="5">5人乗り</option>
+                        <option value="7">7人乗り</option>
+                        <option value="8">8人乗り</option>
+                      </select>
+                      <button
+                        onClick={() => {
+                          const ownerInput = document.getElementById(`eventCarOwner-${currentEventForCarAllocation.id}`);
+                          const capacitySelect = document.getElementById(`eventCarCapacity-${currentEventForCarAllocation.id}`);
+                          const owner = ownerInput.value.trim();
+                          const capacity = parseInt(capacitySelect.value);
+
+                          if (!owner) {
+                            alert('運転者名を入力してください');
+                            return;
+                          }
+
+                          const newCar = {
+                            id: Date.now(),
+                            owner,
+                            capacity,
+                            note: capacity >= 7 ? 'ミニバン' : capacity === 5 ? '乗用車' : '軽自動車'
+                          };
+
+                          updateEventCarData(currentEventForCarAllocation.id, {
+                            cars: [...eventCars, newCar]
+                          });
+
+                          ownerInput.value = '';
+                        }}
+                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors"
+                      >
+                        追加
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* 車一覧 */}
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {eventCars.map(car => {
+                      const carMembers = eventAssignments[car.id] || [];
+                      const isFull = carMembers.length >= car.capacity;
+                      const vacancy = car.capacity - carMembers.length;
+
+                      return (
+                        <div
+                          key={car.id}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleEventDrop(e, car.id)}
+                          className={`bg-white rounded-2xl shadow-sm border-2 transition-all duration-200 overflow-hidden ${
+                            draggedMemberId ? (isFull ? 'opacity-50 border-slate-100' : 'border-dashed border-blue-400 bg-blue-50 scale-[1.02]') : 'border-slate-100'
+                          }`}
+                        >
+                          {/* Car Header */}
+                          <div className="p-4 text-center border-b border-slate-50 relative">
+                            <div className="absolute top-3 right-3">
+                              <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${isFull ? 'bg-red-100 text-red-500' : 'bg-green-100 text-green-600'}`}>
+                                {isFull ? 'FULL' : `あと${vacancy}人`}
+                              </span>
+                            </div>
+                            <div className="w-24 h-16 mx-auto mb-2">{getCarIcon(car.capacity)}</div>
+                            <h3 className="font-bold text-base text-slate-800">{car.owner}<span className="text-sm font-normal text-slate-400">号車</span></h3>
+                            <p className="text-xs text-slate-400">{car.capacity}人乗り {car.note && `• ${car.note}`}</p>
+                            <button
+                              onClick={() => {
+                                if (window.confirm('この車を削除しますか？')) {
+                                  const newAssignments = { ...eventAssignments };
+                                  delete newAssignments[car.id];
+                                  updateEventCarData(currentEventForCarAllocation.id, {
+                                    cars: eventCars.filter(c => c.id !== car.id),
+                                    assignments: newAssignments
+                                  });
+                                }
+                              }}
+                              className="absolute top-3 left-3 text-slate-300 hover:text-red-400"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+
+                          {/* Car Members */}
+                          <div className="p-3 bg-slate-50/50 min-h-[80px]">
+                            <div className="space-y-2">
+                              {carMembers.map(memberId => {
+                                const mem = members.find(m => m.id === memberId);
+                                if (!mem) return null;
+                                return (
+                                  <div
+                                    key={memberId}
+                                    draggable={mem.participating}
+                                    onDragStart={(e) => mem.participating && handleDragStart(e, memberId, car.id)}
+                                    className={`px-3 py-2 rounded-xl text-sm font-bold border shadow-sm flex justify-between items-center ${
+                                      mem.participating
+                                        ? 'cursor-grab active:cursor-grabbing bg-white text-slate-700 border-slate-100'
+                                        : 'bg-slate-100 text-slate-500 border-slate-200 opacity-60'
+                                    }`}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] ${
+                                        mem.participating ? 'bg-blue-100 text-blue-600' : 'bg-slate-200 text-slate-500'
+                                      }`}>
+                                        {mem.participating ? mem.name.charAt(0) : '×'}
+                                      </div>
+                                      <span className={mem.participating ? '' : 'line-through'}>{mem.name}</span>
+                                    </div>
+                                    <button
+                                      onClick={() => {
+                                        const newAssignments = { ...eventAssignments };
+                                        newAssignments[car.id] = newAssignments[car.id].filter(id => id !== memberId);
+                                        updateEventCarData(currentEventForCarAllocation.id, { assignments: newAssignments });
+                                      }}
+                                      className="text-slate-300 hover:text-red-400"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </button>
+                                  </div>
+                                );
+                              })}
+                              {carMembers.length === 0 && (
+                                <div className="text-center text-slate-300 text-xs py-3 italic">ドラッグして乗車</div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {eventCars.length === 0 && (
+                    <div className="text-center text-slate-400 py-8">
+                      <Car className="w-12 h-12 mx-auto mb-2 opacity-30" />
+                      <p className="text-sm">まだ車が登録されていません</p>
+                      <p className="text-xs">上のフォームから車を追加してください</p>
+                    </div>
+                  )}
+
+                  {/* 閉じるボタン */}
+                  <button
+                    onClick={() => setShowCarAllocationModal(false)}
+                    className="w-full bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors"
+                  >
+                    完了
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </main>
     </div>
