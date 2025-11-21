@@ -132,6 +132,10 @@ export default function App() {
   const [copySuccess, setCopySuccess] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState(null);
 
+  // タッチイベント用のstate
+  const [touchStartPos, setTouchStartPos] = useState(null);
+  const [touchDraggedElement, setTouchDraggedElement] = useState(null);
+
   // --- Firebase Realtime Database統合 ---
   // ログイン後にFirebaseからデータを読み込み、リアルタイム同期を開始
   useEffect(() => {
@@ -1429,6 +1433,120 @@ export default function App() {
             clearSelection();
           };
 
+          // タッチイベント用のハンドラー
+          const handleTouchStart = (e, memberId, fromCarId) => {
+            if (!members.find(m => m.id === memberId)?.participating) return;
+
+            const touch = e.touches[0];
+            setTouchStartPos({ x: touch.clientX, y: touch.clientY });
+            setDraggedMemberId({ memberId, fromCarId });
+            setTouchDraggedElement(e.currentTarget);
+
+            // 長押しでドラッグ開始のフィードバック
+            e.currentTarget.style.opacity = '0.7';
+            e.currentTarget.style.transform = 'scale(1.05)';
+          };
+
+          const handleTouchMove = (e) => {
+            if (!draggedMemberId || !touchStartPos) return;
+            e.preventDefault(); // スクロールを防ぐ
+
+            const touch = e.touches[0];
+            const element = touchDraggedElement;
+
+            if (element) {
+              // ドラッグ中の要素を移動（視覚的フィードバック）
+              element.style.position = 'fixed';
+              element.style.left = `${touch.clientX - 50}px`;
+              element.style.top = `${touch.clientY - 20}px`;
+              element.style.zIndex = '9999';
+              element.style.pointerEvents = 'none';
+            }
+          };
+
+          const handleTouchEnd = (e) => {
+            if (!draggedMemberId) return;
+
+            const touch = e.changedTouches[0];
+            const dropTarget = document.elementFromPoint(touch.clientX, touch.clientY);
+
+            // リセット
+            if (touchDraggedElement) {
+              touchDraggedElement.style.position = '';
+              touchDraggedElement.style.left = '';
+              touchDraggedElement.style.top = '';
+              touchDraggedElement.style.zIndex = '';
+              touchDraggedElement.style.opacity = '';
+              touchDraggedElement.style.transform = '';
+              touchDraggedElement.style.pointerEvents = '';
+            }
+
+            // ドロップ先を判定
+            let targetCarId = null;
+            let currentElement = dropTarget;
+
+            // 親要素を遡ってdata-car-id属性を探す
+            while (currentElement && currentElement !== document.body) {
+              if (currentElement.dataset && currentElement.dataset.carId) {
+                targetCarId = parseInt(currentElement.dataset.carId);
+                break;
+              }
+              if (currentElement.dataset && currentElement.dataset.unassignedArea === 'true') {
+                targetCarId = null;
+                break;
+              }
+              currentElement = currentElement.parentElement;
+            }
+
+            // ドロップ処理を実行
+            if (currentElement && currentElement !== document.body) {
+              const { memberId, fromCarId } = draggedMemberId;
+              const membersToMove = selectedMemberIds.includes(memberId)
+                ? selectedMemberIds
+                : [memberId];
+
+              const newAssignments = { ...eventAssignments };
+
+              // 容量チェック
+              if (targetCarId) {
+                const targetCar = eventCars.find(c => c.id === targetCarId);
+                const currentMembers = newAssignments[targetCarId] || [];
+                const availableSpace = targetCar.capacity - 1 - currentMembers.length;
+
+                if (membersToMove.length > availableSpace) {
+                  alert(`容量不足です。空き: ${availableSpace}人、移動: ${membersToMove.length}人`);
+                  setDraggedMemberId(null);
+                  setTouchStartPos(null);
+                  setTouchDraggedElement(null);
+                  return;
+                }
+              }
+
+              // 全メンバーを移動
+              membersToMove.forEach(id => {
+                const member = members.find(m => m.id === id);
+                if (!member || !member.participating) return;
+
+                // 元の車から削除
+                Object.keys(newAssignments).forEach(carId => {
+                  newAssignments[carId] = (newAssignments[carId] || []).filter(mid => mid !== id);
+                });
+
+                // 新しい車に追加
+                if (targetCarId) {
+                  newAssignments[targetCarId] = [...(newAssignments[targetCarId] || []), id];
+                }
+              });
+
+              updateEventCarData(currentEventForCarAllocation.id, { assignments: newAssignments });
+              clearSelection();
+            }
+
+            setDraggedMemberId(null);
+            setTouchStartPos(null);
+            setTouchDraggedElement(null);
+          };
+
           const closeModal = () => {
             setShowCarAllocationModal(false);
             setSelectedMemberIds([]);
@@ -1453,8 +1571,10 @@ export default function App() {
                 <div className="space-y-6">
                   {/* 待機メンバー */}
                   <div
+                    data-unassigned-area="true"
                     onDragOver={handleDragOver}
                     onDrop={(e) => handleEventDrop(e, null)}
+                    onTouchMove={handleTouchMove}
                     className={`bg-white p-5 rounded-3xl shadow-sm border-2 transition-colors duration-200 ${draggedMemberId ? 'border-dashed border-blue-300 bg-blue-50' : 'border-slate-100'}`}
                   >
                     <div className="flex justify-between items-center mb-4">
@@ -1499,6 +1619,8 @@ export default function App() {
                             key={member.id}
                             draggable={member.participating}
                             onDragStart={(e) => member.participating && handleDragStart(e, member.id, null)}
+                            onTouchStart={(e) => member.participating && handleTouchStart(e, member.id, null)}
+                            onTouchEnd={handleTouchEnd}
                             onClick={(e) => {
                               if (member.participating && !e.defaultPrevented) {
                                 toggleMemberSelection(member.id, e);
@@ -1663,8 +1785,10 @@ export default function App() {
                       return (
                         <div
                           key={car.id}
+                          data-car-id={car.id}
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleEventDrop(e, car.id)}
+                          onTouchMove={handleTouchMove}
                           className={`bg-white rounded-xl shadow-sm border-2 transition-all duration-200 overflow-hidden ${
                             draggedMemberId ? (isFull ? 'opacity-50 border-slate-100' : 'border-dashed border-blue-400 bg-blue-50 scale-[1.02]') : 'border-slate-100'
                           }`}
@@ -1708,6 +1832,8 @@ export default function App() {
                                     key={memberId}
                                     draggable={mem.participating}
                                     onDragStart={(e) => mem.participating && handleDragStart(e, memberId, car.id)}
+                                    onTouchStart={(e) => mem.participating && handleTouchStart(e, memberId, car.id)}
+                                    onTouchEnd={handleTouchEnd}
                                     onClick={(e) => {
                                       if (mem.participating && !e.defaultPrevented) {
                                         toggleMemberSelection(memberId, e);
