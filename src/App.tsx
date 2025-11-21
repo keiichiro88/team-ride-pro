@@ -316,11 +316,37 @@ export default function App() {
       ));
     } else {
       // 新規追加
-      const newEvent = {
-        ...eventFormData,
-        id: Date.now()
-      };
-      setCalendarEvents([...calendarEvents, newEvent]);
+      if (eventFormData.isRecurring && eventFormData.recurringDays.length > 0) {
+        // 繰り返しスケジュール：次の12週間分のイベントを生成
+        const newEvents = [];
+        const startDate = new Date(eventFormData.date);
+        const weeksToGenerate = 12;
+
+        for (let week = 0; week < weeksToGenerate; week++) {
+          eventFormData.recurringDays.forEach(dayOfWeek => {
+            const eventDate = new Date(startDate);
+            // 開始日から指定曜日までの日数を計算
+            const daysUntilTarget = (dayOfWeek - startDate.getDay() + 7) % 7;
+            eventDate.setDate(startDate.getDate() + daysUntilTarget + (week * 7));
+
+            newEvents.push({
+              ...eventFormData,
+              date: eventDate.toISOString().split('T')[0],
+              id: Date.now() + newEvents.length,
+              isRecurring: false // 生成されたイベントは個別に扱う
+            });
+          });
+        }
+
+        setCalendarEvents([...calendarEvents, ...newEvents]);
+      } else {
+        // 通常のイベント追加
+        const newEvent = {
+          ...eventFormData,
+          id: Date.now()
+        };
+        setCalendarEvents([...calendarEvents, newEvent]);
+      }
     }
 
     // フォームをリセット
