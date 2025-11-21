@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
+import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2, LogOut } from 'lucide-react';
+import { ref, onValue, set, push, remove, update } from 'firebase/database';
+import { database } from './firebase';
+import Login from './Login';
 
 // --- 車種別アイコン (High Quality SVGs) ---
 const CarIconMiniVan = () => (
@@ -62,6 +65,10 @@ const formatLocalDate = (date) => {
 
 // --- メインアプリ ---
 export default function App() {
+  // --- ログイン状態 ---
+  const [userRole, setUserRole] = useState(null); // null | 'admin' | 'viewer'
+  const [isLoading, setIsLoading] = useState(true);
+
   // --- State Management ---
   const [members, setMembers] = useState([
     { id: 1, name: '鋤柄大河', participating: true }, { id: 2, name: '阿南央哉', participating: true }, { id: 3, name: '阿南空希', participating: true },
@@ -461,6 +468,43 @@ export default function App() {
   const assignedIds = Object.values(assignments).flat();
   const unassignedMembers = members.filter(m => !assignedIds.includes(m.id));
 
+  // ログイン処理
+  const handleLogin = (role) => {
+    setUserRole(role);
+    sessionStorage.setItem('userRole', role);
+  };
+
+  // ログアウト処理
+  const handleLogout = () => {
+    setUserRole(null);
+    sessionStorage.removeItem('userRole');
+  };
+
+  // セッション復元
+  useEffect(() => {
+    const savedRole = sessionStorage.getItem('userRole');
+    if (savedRole) {
+      setUserRole(savedRole);
+    }
+    setIsLoading(false);
+  }, []);
+
+  // ログインしていない場合はログイン画面を表示
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-400">読み込み中...</div>
+      </div>
+    );
+  }
+
+  if (!userRole) {
+    return <Login onLogin={handleLogin} />;
+  }
+
+  // 権限チェック関数
+  const isAdmin = userRole === 'admin';
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-gray-800 pb-24">
       {/* Header */}
@@ -470,7 +514,20 @@ export default function App() {
             <Car className="w-6 h-6 text-blue-600" />
             Little Brave Schedule管理Pro
           </h1>
-          <div className="text-xs font-mono text-slate-400">v2.0 Local</div>
+          <div className="flex items-center gap-3">
+            <div className="text-xs">
+              <span className={`px-2 py-1 rounded-full font-bold ${isAdmin ? 'bg-blue-100 text-blue-600' : 'bg-slate-100 text-slate-600'}`}>
+                {isAdmin ? '管理者' : '閲覧者'}
+              </span>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="text-slate-400 hover:text-slate-600 transition-colors"
+              title="ログアウト"
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
+          </div>
         </div>
       </header>
 
