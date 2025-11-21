@@ -92,6 +92,7 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showCarAllocationModal, setShowCarAllocationModal] = useState(false);
   const [currentEventForCarAllocation, setCurrentEventForCarAllocation] = useState(null);
+  const [selectedEventIdForShare, setSelectedEventIdForShare] = useState(null);
 
   // Event Form States
   const [eventFormData, setEventFormData] = useState({
@@ -159,6 +160,13 @@ export default function App() {
     };
     localStorage.setItem('teamRideDataPro', JSON.stringify(dataToSave));
   }, [members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents]);
+
+  // 共有タブ用：カレンダーイベントが変更されたときに最初のイベントを選択
+  useEffect(() => {
+    if (calendarEvents.length > 0 && !selectedEventIdForShare) {
+      setSelectedEventIdForShare(calendarEvents[0].id);
+    }
+  }, [calendarEvents, selectedEventIdForShare]);
 
   // --- Backup & Restore Functions ---
   const exportData = () => {
@@ -635,27 +643,124 @@ export default function App() {
         )}
 
         {/* === SHARE TAB === */}
-        {activeTab === 'share' && (
-          <div className="space-y-6 animate-fadeIn">
-            <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-               <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-                 <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
-                 プレビュー
-               </h2>
-               <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                 <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
-                    {generateReport()}
-                 </pre>
-               </div>
-               <button
-                  onClick={copyToClipboard}
-                  className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
-               >
-                  {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
-               </button>
+        {activeTab === 'share' && (() => {
+          const selectedEvent = calendarEvents.find(e => e.id === selectedEventIdForShare);
+
+          const generateEventReport = () => {
+            if (!selectedEvent) return 'イベントを選択してください';
+
+            const dateObj = new Date(selectedEvent.date);
+            const formattedDate = dateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+
+            let report = `📅 ${selectedEvent.title} (${formattedDate})\n\n`;
+
+            if (selectedEvent.startTime || selectedEvent.endTime) {
+              report += `⏰ 時間\n${selectedEvent.startTime || '未定'} 〜 ${selectedEvent.endTime || '未定'}\n\n`;
+            }
+
+            if (selectedEvent.scheduleItems && selectedEvent.scheduleItems.length > 0) {
+              report += `⏰ スケジュール\n` + selectedEvent.scheduleItems.map(i => `${i.time} ${i.content}`).join('\n') + `\n\n`;
+            }
+
+            if (selectedEvent.note && selectedEvent.note.trim()) {
+              report += `📢 メモ\n${selectedEvent.note.trim()}\n\n`;
+            }
+
+            if (selectedEvent.eventNotes && selectedEvent.eventNotes.trim()) {
+              report += `📢 伝達事項\n${selectedEvent.eventNotes.trim()}\n\n`;
+            }
+
+            if (selectedEvent.eventItems && selectedEvent.eventItems.trim()) {
+              report += `🎒 持ってくるもの\n${selectedEvent.eventItems.trim()}\n\n`;
+            }
+
+            const eventCars = selectedEvent.cars || [];
+            const eventAssignments = selectedEvent.assignments || {};
+
+            if (eventCars.length > 0) {
+              report += `------------------\n🚗 配車表\n`;
+              eventCars.forEach(car => {
+                const carMembers = eventAssignments[car.id] || [];
+                const names = carMembers.map(mid => members.find(m => m.id === mid)?.name || '不明').join('、');
+                report += `【${car.owner}号車】(${carMembers.length}/${car.capacity - 1})${car.note ? ` ※${car.note}` : ''}\n`;
+                report += carMembers.length > 0 ? `メンバー: ${names}\n` : `メンバー: なし\n`;
+                report += `\n`;
+              });
+
+              const assignedIds = Object.values(eventAssignments).flat();
+              const unassigned = members.filter(m => !assignedIds.includes(m.id) && m.participating);
+              if (unassigned.length > 0) {
+                report += `⚠️ 未割り当て: ${unassigned.map(m => m.name).join('、')}\n`;
+              }
+            } else {
+              report += `------------------\n🚗 配車表\n（まだ配車が登録されていません）\n`;
+            }
+
+            return report;
+          };
+
+          const copyEventToClipboard = () => {
+            const text = generateEventReport();
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.opacity = "0";
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            setCopySuccess(true);
+            setTimeout(() => setCopySuccess(false), 2000);
+          };
+
+          return (
+            <div className="space-y-6 animate-fadeIn">
+              {/* イベント選択 */}
+              {calendarEvents.length > 0 && (
+                <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
+                  <label className="text-xs font-bold text-slate-600 mb-2 block">共有するイベントを選択</label>
+                  <select
+                    value={selectedEventIdForShare || ''}
+                    onChange={(e) => setSelectedEventIdForShare(Number(e.target.value))}
+                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 font-bold text-slate-700 focus:ring-2 focus:ring-blue-200"
+                  >
+                    {calendarEvents.map(event => (
+                      <option key={event.id} value={event.id}>
+                        {event.title} ({event.date})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {calendarEvents.length === 0 ? (
+                <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
+                  <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
+                  <p className="text-slate-500 mb-2">まだイベントが登録されていません</p>
+                  <p className="text-xs text-slate-400">カレンダータブからイベントを追加してください</p>
+                </div>
+              ) : (
+                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                  <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
+                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
+                    プレビュー
+                  </h2>
+                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                    <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
+                      {generateEventReport()}
+                    </pre>
+                  </div>
+                  <button
+                    onClick={copyEventToClipboard}
+                    className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
+                  >
+                    {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* === SETTINGS TAB === */}
         {activeTab === 'settings' && (
