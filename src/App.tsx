@@ -1180,6 +1180,46 @@ export default function App() {
           </div>
         )}
 
+        {/* Car Allocation Modal */}
+        {showCarAllocationModal && currentEventForCarAllocation && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCarAllocationModal(false)}>
+            <div className="bg-white rounded-3xl p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-xl font-bold text-slate-800">{currentEventForCarAllocation.title}</h3>
+                  <p className="text-sm text-slate-500">{currentEventForCarAllocation.date} の配車</p>
+                </div>
+                <button
+                  onClick={() => setShowCarAllocationModal(false)}
+                  className="text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                {/* 簡易版配車機能 - まずは表示のみ */}
+                <div className="bg-slate-50 p-6 rounded-2xl">
+                  <p className="text-center text-slate-600">
+                    配車機能を実装中...
+                  </p>
+                  <p className="text-center text-sm text-slate-400 mt-2">
+                    このイベント専用の配車データを管理できるようになります
+                  </p>
+                </div>
+
+                {/* 閉じるボタン */}
+                <button
+                  onClick={() => setShowCarAllocationModal(false)}
+                  className="w-full bg-slate-500 text-white py-3 rounded-xl font-bold hover:bg-slate-600 transition-colors"
+                >
+                  閉じる
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );
