@@ -51,6 +51,15 @@ const CarIconKCar = () => (
   </svg>
 );
 
+// --- ユーティリティ関数 ---
+// ローカルタイムゾーンで日付をYYYY-MM-DD形式に変換
+const formatLocalDate = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // --- メインアプリ ---
 export default function App() {
   // --- State Management ---
@@ -107,7 +116,7 @@ export default function App() {
   // --- Persistence (Auto Save/Load) ---
   useEffect(() => {
     if (!eventDate) {
-      const today = new Date().toISOString().split('T')[0];
+      const today = formatLocalDate(new Date());
       setEventDate(today);
     }
     const savedData = localStorage.getItem('teamRideDataPro');
@@ -331,7 +340,7 @@ export default function App() {
 
             newEvents.push({
               ...eventFormData,
-              date: eventDate.toISOString().split('T')[0],
+              date: formatLocalDate(eventDate),
               id: Date.now() + newEvents.length,
               isRecurring: false // 生成されたイベントは個別に扱う
             });
@@ -746,8 +755,8 @@ export default function App() {
                     // Days of the month
                     for (let day = 1; day <= daysInMonth; day++) {
                       const date = new Date(year, month, day);
-                      const dateStr = date.toISOString().split('T')[0];
-                      const isToday = dateStr === new Date().toISOString().split('T')[0];
+                      const dateStr = formatLocalDate(date);
+                      const isToday = dateStr === formatLocalDate(new Date());
                       const dayOfWeek = date.getDay();
 
                       // Filter events for this day
