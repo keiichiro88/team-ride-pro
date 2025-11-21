@@ -90,6 +90,8 @@ export default function App() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showEventModal, setShowEventModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [showCarAllocationModal, setShowCarAllocationModal] = useState(false);
+  const [currentEventForCarAllocation, setCurrentEventForCarAllocation] = useState(null);
 
   // Event Form States
   const [eventFormData, setEventFormData] = useState({
@@ -100,7 +102,13 @@ export default function App() {
     type: 'practice', // practice, tournament, other
     isRecurring: false,
     recurringDays: [], // [0-6] 0=Sunday
-    note: ''
+    note: '',
+    // 配車情報
+    cars: [],
+    assignments: {},
+    scheduleItems: [],
+    eventNotes: '',
+    eventItems: ''
   });
 
   // Input Temporary States
@@ -367,7 +375,12 @@ export default function App() {
       type: 'practice',
       isRecurring: false,
       recurringDays: [],
-      note: ''
+      note: '',
+      cars: [],
+      assignments: {},
+      scheduleItems: [],
+      eventNotes: '',
+      eventItems: ''
     });
     setShowEventModal(false);
     setEditingEvent(null);
@@ -1123,26 +1136,44 @@ export default function App() {
                 )}
 
                 {/* ボタン */}
-                <div className="flex gap-2">
+                <div className="space-y-2">
+                  {/* 配車ボタン (編集時のみ表示) */}
                   {editingEvent && (
                     <button
                       type="button"
                       onClick={() => {
-                        deleteEvent(editingEvent.id);
-                        setShowEventModal(false);
-                        setEditingEvent(null);
+                        setCurrentEventForCarAllocation(editingEvent);
+                        setShowCarAllocationModal(true);
                       }}
-                      className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors"
+                      className="w-full bg-blue-500 text-white py-3 rounded-xl font-bold hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
                     >
-                      削除
+                      <Car className="w-5 h-5" />
+                      配車
                     </button>
                   )}
-                  <button
-                    onClick={saveEvent}
-                    className={`${editingEvent ? 'flex-1' : 'w-full'} bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors`}
-                  >
-                    保存
-                  </button>
+
+                  {/* 保存・削除ボタン */}
+                  <div className="flex gap-2">
+                    {editingEvent && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          deleteEvent(editingEvent.id);
+                          setShowEventModal(false);
+                          setEditingEvent(null);
+                        }}
+                        className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors"
+                      >
+                        削除
+                      </button>
+                    )}
+                    <button
+                      onClick={saveEvent}
+                      className={`${editingEvent ? 'flex-1' : 'w-full'} bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors`}
+                    >
+                      保存
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
