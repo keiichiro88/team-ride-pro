@@ -1306,6 +1306,59 @@ export default function App() {
                       <Car className="w-4 h-4 text-blue-600" />
                       車を追加
                     </h3>
+
+                    {/* 登録済み車両から追加 */}
+                    {cars.length > 0 && (
+                      <div className="mb-3 pb-3 border-b border-slate-100">
+                        <p className="text-xs text-slate-500 mb-2">登録済み車両から追加</p>
+                        <div className="flex gap-2">
+                          <select
+                            className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                            id={`registeredCarSelect-${currentEventForCarAllocation.id}`}
+                          >
+                            <option value="">選択してください</option>
+                            {cars.map(car => (
+                              <option key={car.id} value={car.id}>
+                                {car.owner}号車 ({car.capacity}人乗り)
+                              </option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={() => {
+                              const selectEl = document.getElementById(`registeredCarSelect-${currentEventForCarAllocation.id}`);
+                              const selectedCarId = parseInt(selectEl.value);
+
+                              if (!selectedCarId) {
+                                alert('車両を選択してください');
+                                return;
+                              }
+
+                              const selectedCar = cars.find(c => c.id === selectedCarId);
+                              if (!selectedCar) return;
+
+                              const newCar = {
+                                id: Date.now(),
+                                owner: selectedCar.owner,
+                                capacity: selectedCar.capacity,
+                                note: selectedCar.note
+                              };
+
+                              updateEventCarData(currentEventForCarAllocation.id, {
+                                cars: [...eventCars, newCar]
+                              });
+
+                              selectEl.value = '';
+                            }}
+                            className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-green-600 transition-colors"
+                          >
+                            追加
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 手動で追加 */}
+                    <p className="text-xs text-slate-500 mb-2">手動で追加</p>
                     <div className="flex gap-2">
                       <input
                         type="text"
