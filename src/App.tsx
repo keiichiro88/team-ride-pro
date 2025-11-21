@@ -92,7 +92,6 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showCarAllocationModal, setShowCarAllocationModal] = useState(false);
   const [currentEventForCarAllocation, setCurrentEventForCarAllocation] = useState(null);
-  const [selectedEventIdForShare, setSelectedEventIdForShare] = useState(null);
 
   // Event Form States
   const [eventFormData, setEventFormData] = useState({
@@ -652,38 +651,34 @@ export default function App() {
 
         {/* === SHARE TAB === */}
         {activeTab === 'share' && (() => {
-          const selectedEvent = calendarEvents.find(e => e.id === selectedEventIdForShare);
-
-          const generateEventReport = () => {
-            if (!selectedEvent) return 'イベントを選択してください';
-
-            const dateObj = new Date(selectedEvent.date);
+          const generateEventReport = (event) => {
+            const dateObj = new Date(event.date);
             const formattedDate = dateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
 
-            let report = `📅 ${selectedEvent.title} (${formattedDate})\n\n`;
+            let report = `📅 ${event.title} (${formattedDate})\n\n`;
 
-            if (selectedEvent.startTime || selectedEvent.endTime) {
-              report += `⏰ 時間\n${selectedEvent.startTime || '未定'} 〜 ${selectedEvent.endTime || '未定'}\n\n`;
+            if (event.startTime || event.endTime) {
+              report += `⏰ 時間\n${event.startTime || '未定'} 〜 ${event.endTime || '未定'}\n\n`;
             }
 
-            if (selectedEvent.scheduleItems && selectedEvent.scheduleItems.length > 0) {
-              report += `⏰ スケジュール\n` + selectedEvent.scheduleItems.map(i => `${i.time} ${i.content}`).join('\n') + `\n\n`;
+            if (event.scheduleItems && event.scheduleItems.length > 0) {
+              report += `⏰ スケジュール\n` + event.scheduleItems.map(i => `${i.time} ${i.content}`).join('\n') + `\n\n`;
             }
 
-            if (selectedEvent.note && selectedEvent.note.trim()) {
-              report += `📢 メモ\n${selectedEvent.note.trim()}\n\n`;
+            if (event.note && event.note.trim()) {
+              report += `📢 メモ\n${event.note.trim()}\n\n`;
             }
 
-            if (selectedEvent.eventNotes && selectedEvent.eventNotes.trim()) {
-              report += `📢 伝達事項\n${selectedEvent.eventNotes.trim()}\n\n`;
+            if (event.eventNotes && event.eventNotes.trim()) {
+              report += `📢 伝達事項\n${event.eventNotes.trim()}\n\n`;
             }
 
-            if (selectedEvent.eventItems && selectedEvent.eventItems.trim()) {
-              report += `🎒 持ってくるもの\n${selectedEvent.eventItems.trim()}\n\n`;
+            if (event.eventItems && event.eventItems.trim()) {
+              report += `🎒 持ってくるもの\n${event.eventItems.trim()}\n\n`;
             }
 
-            const eventCars = selectedEvent.cars || [];
-            const eventAssignments = selectedEvent.assignments || {};
+            const eventCars = event.cars || [];
+            const eventAssignments = event.assignments || {};
 
             if (eventCars.length > 0) {
               report += `------------------\n🚗 配車表\n`;
@@ -707,8 +702,8 @@ export default function App() {
             return report;
           };
 
-          const copyEventToClipboard = () => {
-            const text = generateEventReport();
+          const copyEventToClipboard = (event) => {
+            const text = generateEventReport(event);
             const textArea = document.createElement("textarea");
             textArea.value = text;
             textArea.style.position = "fixed";
@@ -721,26 +716,11 @@ export default function App() {
             setTimeout(() => setCopySuccess(false), 2000);
           };
 
+          // 日付順にソート（近い順）
+          const sortedEvents = [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+
           return (
             <div className="space-y-6 animate-fadeIn">
-              {/* イベント選択 */}
-              {calendarEvents.length > 0 && (
-                <div className="bg-white p-4 rounded-3xl shadow-sm border border-slate-100">
-                  <label className="text-xs font-bold text-slate-600 mb-2 block">共有するイベントを選択</label>
-                  <select
-                    value={selectedEventIdForShare || ''}
-                    onChange={(e) => setSelectedEventIdForShare(Number(e.target.value))}
-                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 font-bold text-slate-700 focus:ring-2 focus:ring-blue-200"
-                  >
-                    {calendarEvents.map(event => (
-                      <option key={event.id} value={event.id}>
-                        {event.title} ({event.date})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-
               {calendarEvents.length === 0 ? (
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
                   <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
@@ -748,23 +728,25 @@ export default function App() {
                   <p className="text-xs text-slate-400">カレンダータブからイベントを追加してください</p>
                 </div>
               ) : (
-                <div className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                  <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-                    <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
-                    プレビュー
-                  </h2>
-                  <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                    <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
-                      {generateEventReport()}
-                    </pre>
+                sortedEvents.map(event => (
+                  <div key={event.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                    <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
+                      <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
+                      {event.title}
+                    </h2>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                      <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
+                        {generateEventReport(event)}
+                      </pre>
+                    </div>
+                    <button
+                      onClick={() => copyEventToClipboard(event)}
+                      className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
+                    >
+                      {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
+                    </button>
                   </div>
-                  <button
-                    onClick={copyEventToClipboard}
-                    className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
-                  >
-                    {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
-                  </button>
-                </div>
+                ))
               )}
             </div>
           );
