@@ -69,6 +69,8 @@ export default function App() {
   // --- ログイン状態 ---
   const [userRole, setUserRole] = useState(null); // null | 'admin' | 'viewer'
   const [isLoading, setIsLoading] = useState(true);
+  const [isDataLoading, setIsDataLoading] = useState(false);
+  const [error, setError] = useState(null);
 
   // --- State Management ---
   const [members, setMembers] = useState([
@@ -136,48 +138,97 @@ export default function App() {
     if (!userRole) return; // ログインしていない場合は何もしない
 
     console.log('🔥 Firebase同期開始...');
+    setIsDataLoading(true);
+    setError(null);
 
-    // メンバーデータの同期
-    const membersRef = ref(database, 'teamData/members');
-    const unsubscribeMembers = onValue(membersRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        console.log('📥 Firebaseからメンバーデータを受信:', data);
-        const updatedMembers = data.map(m => ({
-          ...m,
-          participating: m.participating !== undefined ? m.participating : true
-        }));
-        setMembers(updatedMembers);
-      }
-    });
+    try {
+      let loadedCount = 0;
+      const totalToLoad = 3; // members, cars, events
 
-    // 車両データの同期
-    const carsRef = ref(database, 'teamData/cars');
-    const unsubscribeCars = onValue(carsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        console.log('📥 Firebaseから車両データを受信:', data);
-        setCars(data);
-      }
-    });
+      const checkAllLoaded = () => {
+        loadedCount++;
+        if (loadedCount >= totalToLoad) {
+          setIsDataLoading(false);
+          console.log('✅ 全データの読み込み完了');
+        }
+      };
 
-    // カレンダーイベントの同期
-    const eventsRef = ref(database, 'teamData/calendarEvents');
-    const unsubscribeEvents = onValue(eventsRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
-        console.log('📥 Firebaseからイベントデータを受信:', data);
-        setCalendarEvents(data);
-      }
-    });
+      // メンバーデータの同期
+      const membersRef = ref(database, 'teamData/members');
+      const unsubscribeMembers = onValue(membersRef, (snapshot) => {
+        try {
+          const data = snapshot.val();
+          if (data) {
+            console.log('📥 Firebaseからメンバーデータを受信:', data);
+            const updatedMembers = data.map(m => ({
+              ...m,
+              participating: m.participating !== undefined ? m.participating : true
+            }));
+            setMembers(updatedMembers);
+          }
+          checkAllLoaded();
+        } catch (err) {
+          console.error('❌ メンバーデータの読み込みエラー:', err);
+          setError('メンバーデータの読み込みに失敗しました');
+        }
+      }, (error) => {
+        console.error('❌ Firebaseエラー (members):', error);
+        setError('メンバーデータの同期に失敗しました');
+        setIsDataLoading(false);
+      });
 
-    // クリーンアップ関数
-    return () => {
-      unsubscribeMembers();
-      unsubscribeCars();
-      unsubscribeEvents();
-      console.log('🔌 Firebase同期を停止');
-    };
+      // 車両データの同期
+      const carsRef = ref(database, 'teamData/cars');
+      const unsubscribeCars = onValue(carsRef, (snapshot) => {
+        try {
+          const data = snapshot.val();
+          if (data) {
+            console.log('📥 Firebaseから車両データを受信:', data);
+            setCars(data);
+          }
+          checkAllLoaded();
+        } catch (err) {
+          console.error('❌ 車両データの読み込みエラー:', err);
+          setError('車両データの読み込みに失敗しました');
+        }
+      }, (error) => {
+        console.error('❌ Firebaseエラー (cars):', error);
+        setError('車両データの同期に失敗しました');
+        setIsDataLoading(false);
+      });
+
+      // カレンダーイベントの同期
+      const eventsRef = ref(database, 'teamData/calendarEvents');
+      const unsubscribeEvents = onValue(eventsRef, (snapshot) => {
+        try {
+          const data = snapshot.val();
+          if (data) {
+            console.log('📥 Firebaseからイベントデータを受信:', data);
+            setCalendarEvents(data);
+          }
+          checkAllLoaded();
+        } catch (err) {
+          console.error('❌ イベントデータの読み込みエラー:', err);
+          setError('イベントデータの読み込みに失敗しました');
+        }
+      }, (error) => {
+        console.error('❌ Firebaseエラー (events):', error);
+        setError('イベントデータの同期に失敗しました');
+        setIsDataLoading(false);
+      });
+
+      // クリーンアップ関数
+      return () => {
+        unsubscribeMembers();
+        unsubscribeCars();
+        unsubscribeEvents();
+        console.log('🔌 Firebase同期を停止');
+      };
+    } catch (err) {
+      console.error('❌ Firebase初期化エラー:', err);
+      setError('Firebaseとの接続に失敗しました');
+      setIsDataLoading(false);
+    }
   }, [userRole]);
 
   // データ変更時にFirebaseに保存（管理者のみ）
@@ -194,8 +245,10 @@ export default function App() {
       const membersRef = ref(database, 'teamData/members');
       set(membersRef, members).then(() => {
         console.log('✅ メンバーデータを保存しました');
+        setError(null); // エラーをクリア
       }).catch((error) => {
         console.error('❌ メンバーデータの保存に失敗:', error);
+        setError('メンバーデータの保存に失敗しました。ネットワーク接続を確認してください。');
       });
     }
 
@@ -204,8 +257,10 @@ export default function App() {
       const carsRef = ref(database, 'teamData/cars');
       set(carsRef, cars).then(() => {
         console.log('✅ 車両データを保存しました');
+        setError(null); // エラーをクリア
       }).catch((error) => {
         console.error('❌ 車両データの保存に失敗:', error);
+        setError('車両データの保存に失敗しました。ネットワーク接続を確認してください。');
       });
     }
 
@@ -214,8 +269,10 @@ export default function App() {
       const eventsRef = ref(database, 'teamData/calendarEvents');
       set(eventsRef, calendarEvents).then(() => {
         console.log('✅ イベントデータを保存しました');
+        setError(null); // エラーをクリア
       }).catch((error) => {
         console.error('❌ イベントデータの保存に失敗:', error);
+        setError('イベントデータの保存に失敗しました。ネットワーク接続を確認してください。');
       });
     }
 
@@ -616,6 +673,35 @@ export default function App() {
       </header>
 
       <main className="max-w-2xl mx-auto p-4 space-y-6">
+        {/* エラーメッセージ */}
+        {error && (
+          <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-4 flex items-start gap-3 animate-fadeIn">
+            <div className="bg-red-100 p-2 rounded-lg text-red-600 flex-shrink-0">
+              <X className="w-5 h-5" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-bold text-red-800 mb-1">エラーが発生しました</h3>
+              <p className="text-sm text-red-600">{error}</p>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="text-red-400 hover:text-red-600 transition-colors"
+              title="閉じる"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
+        {/* ローディング状態 */}
+        {isDataLoading && (
+          <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-4 flex items-center gap-3 animate-fadeIn">
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+            <p className="text-sm text-blue-700 font-medium">
+              Firebaseからデータを読み込んでいます...
+            </p>
+          </div>
+        )}
 
         {/* Tab Navigation */}
         <nav className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 sticky top-16 z-10 overflow-x-auto">

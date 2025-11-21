@@ -1,0 +1,17 @@
+{
+  "rules": {
+    "teamData": {
+      ".read": true,
+      ".write": true,
+      "members": {
+        ".indexOn": ["id", "name", "participating"]
+      },
+      "cars": {
+        ".indexOn": ["id", "owner"]
+      },
+      "calendarEvents": {
+        ".indexOn": ["id", "date", "type"]
+      }
+    }
+  }
+}
