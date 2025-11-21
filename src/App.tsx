@@ -98,6 +98,7 @@ export default function App() {
   const [eventFormData, setEventFormData] = useState({
     title: '',
     date: '',
+    endDate: '', // 終了日（複数日イベント用）
     startTime: '',
     endTime: '',
     type: 'practice', // practice, tournament, other
@@ -371,6 +372,7 @@ export default function App() {
     setEventFormData({
       title: '',
       date: '',
+      endDate: '',
       startTime: '',
       endTime: '',
       type: 'practice',
@@ -574,8 +576,12 @@ export default function App() {
                       const isToday = dateStr === formatLocalDate(new Date());
                       const dayOfWeek = date.getDay();
 
-                      // Filter events for this day
-                      const dayEvents = calendarEvents.filter(event => event.date === dateStr);
+                      // Filter events for this day (including multi-day events)
+                      const dayEvents = calendarEvents.filter(event => {
+                        const eventStart = event.date;
+                        const eventEnd = event.endDate || event.date;
+                        return dateStr >= eventStart && dateStr <= eventEnd;
+                      });
 
                       days.push(
                         <div
@@ -924,14 +930,27 @@ export default function App() {
                 </div>
 
                 {/* 日付 */}
-                <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">日付 *</label>
-                  <input
-                    type="date"
-                    value={eventFormData.date}
-                    onChange={(e) => setEventFormData({ ...eventFormData, date: e.target.value })}
-                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">開始日 *</label>
+                    <input
+                      type="date"
+                      value={eventFormData.date}
+                      onChange={(e) => setEventFormData({ ...eventFormData, date: e.target.value })}
+                      className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-slate-600 mb-1 block">終了日（複数日の場合）</label>
+                    <input
+                      type="date"
+                      value={eventFormData.endDate}
+                      onChange={(e) => setEventFormData({ ...eventFormData, endDate: e.target.value })}
+                      min={eventFormData.date}
+                      className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                      placeholder="同じ日の場合は空欄"
+                    />
+                  </div>
                 </div>
 
                 {/* 時間 */}
