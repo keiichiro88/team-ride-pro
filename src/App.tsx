@@ -1373,6 +1373,7 @@ export default function App() {
                       >
                         <option value="4">4人乗り</option>
                         <option value="5">5人乗り</option>
+                        <option value="6">6人乗り</option>
                         <option value="7">7人乗り</option>
                         <option value="8">8人乗り</option>
                       </select>
@@ -1392,7 +1393,7 @@ export default function App() {
                             id: Date.now(),
                             owner,
                             capacity,
-                            note: capacity >= 7 ? 'ミニバン' : capacity === 5 ? '乗用車' : '軽自動車'
+                            note: capacity >= 7 ? 'ミニバン' : capacity >= 5 ? '乗用車' : '軽自動車'
                           };
 
                           updateEventCarData(currentEventForCarAllocation.id, {
