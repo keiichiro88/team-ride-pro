@@ -92,6 +92,7 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showCarAllocationModal, setShowCarAllocationModal] = useState(false);
   const [currentEventForCarAllocation, setCurrentEventForCarAllocation] = useState(null);
+  const [selectedMemberIds, setSelectedMemberIds] = useState([]);
 
   // Event Form States
   const [eventFormData, setEventFormData] = useState({
@@ -1070,9 +1071,6 @@ export default function App() {
           const assignedMemberIds = Object.values(eventAssignments).flat();
           const eventUnassignedMembers = members.filter(m => !assignedMemberIds.includes(m.id));
 
-          // 複数選択用のstate
-          const [selectedMemberIds, setSelectedMemberIds] = React.useState([]);
-
           // メンバーを選択/選択解除
           const toggleMemberSelection = (memberId, e) => {
             e.stopPropagation();
@@ -1135,8 +1133,13 @@ export default function App() {
             clearSelection();
           };
 
+          const closeModal = () => {
+            setShowCarAllocationModal(false);
+            setSelectedMemberIds([]);
+          };
+
           return (
-            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowCarAllocationModal(false)}>
+            <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={closeModal}>
               <div className="bg-white rounded-3xl p-6 max-w-7xl w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 <div className="flex justify-between items-center mb-6">
                   <div>
@@ -1144,7 +1147,7 @@ export default function App() {
                     <p className="text-sm text-slate-500">{currentEventForCarAllocation.date} の配車</p>
                   </div>
                   <button
-                    onClick={() => setShowCarAllocationModal(false)}
+                    onClick={closeModal}
                     className="text-slate-400 hover:text-slate-600"
                   >
                     <X className="w-6 h-6" />
