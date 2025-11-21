@@ -716,37 +716,66 @@ export default function App() {
             setTimeout(() => setCopySuccess(false), 2000);
           };
 
-          // 今日以降のイベントのみをフィルタリングして日付順にソート（近い順）
+          // 今日以降のイベントのみをフィルタリング
           const today = formatLocalDate(new Date());
           const futureEvents = calendarEvents.filter(event => {
             const eventEnd = event.endDate || event.date;
             return eventEnd >= today;
-          }).sort((a, b) => new Date(a.date) - new Date(b.date));
+          });
+
+          // 複数日イベントを各日ごとに展開
+          const expandedEvents = [];
+          futureEvents.forEach(event => {
+            const startDate = new Date(event.date);
+            const endDate = event.endDate ? new Date(event.endDate) : new Date(event.date);
+
+            // 開始日から終了日まで1日ずつループ
+            const currentDate = new Date(startDate);
+            while (currentDate <= endDate) {
+              const dateStr = formatLocalDate(currentDate);
+              if (dateStr >= today) {
+                expandedEvents.push({
+                  ...event,
+                  date: dateStr, // この日の日付を使用
+                  displayDate: dateStr,
+                  uniqueKey: `${event.id}-${dateStr}`
+                });
+              }
+              currentDate.setDate(currentDate.getDate() + 1);
+            }
+          });
+
+          // 日付順にソート（近い順）
+          expandedEvents.sort((a, b) => new Date(a.displayDate) - new Date(b.displayDate));
 
           return (
             <div className="space-y-6 animate-fadeIn">
-              {futureEvents.length === 0 ? (
+              {expandedEvents.length === 0 ? (
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
                   <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
                   <p className="text-slate-500 mb-2">未来の予定がありません</p>
                   <p className="text-xs text-slate-400">カレンダータブからイベントを追加してください</p>
                 </div>
               ) : (
-                futureEvents.map(event => (
-                  <div key={event.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
-                    <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
-                      <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
-                      {event.title}
-                    </h2>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                      <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
-                        {generateEventReport(event)}
-                      </pre>
-                    </div>
-                    <button
-                      onClick={() => copyEventToClipboard(event)}
-                      className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
-                    >
+                expandedEvents.map(eventDay => {
+                  const displayDateObj = new Date(eventDay.displayDate);
+                  const formattedDisplayDate = displayDateObj.toLocaleDateString('ja-JP', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' });
+
+                  return (
+                    <div key={eventDay.uniqueKey} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
+                      <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
+                        <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
+                        {eventDay.title} - {formattedDisplayDate}
+                      </h2>
+                      <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200">
+                        <pre className="whitespace-pre-wrap font-mono text-xs md:text-sm text-slate-600 leading-relaxed">
+                          {generateEventReport(eventDay)}
+                        </pre>
+                      </div>
+                      <button
+                        onClick={() => copyEventToClipboard(eventDay)}
+                        className={`w-full mt-6 py-4 rounded-xl font-bold text-white shadow-lg transition-all flex justify-center items-center gap-2 ${copySuccess ? 'bg-green-500 shadow-green-200' : 'bg-blue-600 shadow-blue-200 hover:bg-blue-700'}`}
+                      >
                       {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
                     </button>
                   </div>
