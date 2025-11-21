@@ -1,7 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2, LogOut } from 'lucide-react';
-import { ref, onValue, set, push, remove, update } from 'firebase/database';
-import { database } from './firebase';
+import { useState, useEffect } from 'react';
+import { Car, Users, Share2, Plus, Trash2, X, ClipboardCheck, Settings, RotateCcw, Calendar, Save, Upload, GripVertical, Check, UserMinus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import Login from './Login';
 
 // --- 車種別アイコン (High Quality SVGs) ---
