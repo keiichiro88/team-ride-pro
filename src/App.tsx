@@ -160,13 +160,6 @@ export default function App() {
     localStorage.setItem('teamRideDataPro', JSON.stringify(dataToSave));
   }, [members, cars, assignments, eventDate, eventName, scheduleItems, eventNotes, eventItems, calendarEvents]);
 
-  // 共有タブ用：カレンダーイベントが変更されたときに最初のイベントを選択
-  useEffect(() => {
-    if (calendarEvents.length > 0 && !selectedEventIdForShare) {
-      setSelectedEventIdForShare(calendarEvents[0].id);
-    }
-  }, [calendarEvents, selectedEventIdForShare]);
-
   // --- Backup & Restore Functions ---
   const exportData = () => {
     const dataStr = JSON.stringify({
