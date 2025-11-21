@@ -958,18 +958,6 @@ export default function App() {
               </div>
 
               <div className="space-y-4">
-                {/* タイトル */}
-                <div>
-                  <label className="text-xs font-bold text-slate-600 mb-1 block">タイトル *</label>
-                  <input
-                    type="text"
-                    value={eventFormData.title}
-                    onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
-                    className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
-                    placeholder="例: 練習試合"
-                  />
-                </div>
-
                 {/* イベントタイプ */}
                 <div>
                   <label className="text-xs font-bold text-slate-600 mb-1 block">種類</label>
@@ -982,7 +970,14 @@ export default function App() {
                       <button
                         key={type.value}
                         type="button"
-                        onClick={() => setEventFormData({ ...eventFormData, type: type.value })}
+                        onClick={() => {
+                          const newFormData = { ...eventFormData, type: type.value };
+                          // 練習タイプに切り替えた時、デフォルトで「通常練習」を設定
+                          if (type.value === 'practice' && !eventFormData.title) {
+                            newFormData.title = '通常練習';
+                          }
+                          setEventFormData(newFormData);
+                        }}
                         className={`py-2 px-3 rounded-lg border-2 text-xs font-bold transition-all ${
                           eventFormData.type === type.value ? type.color : 'bg-white text-slate-400 border-slate-200'
                         }`}
@@ -991,6 +986,37 @@ export default function App() {
                       </button>
                     ))}
                   </div>
+                </div>
+
+                {/* タイトル */}
+                <div>
+                  <label className="text-xs font-bold text-slate-600 mb-1 block">タイトル *</label>
+                  {eventFormData.type === 'practice' ? (
+                    <div className="grid grid-cols-2 gap-2">
+                      {['通常練習', '休日練習'].map(practiceType => (
+                        <button
+                          key={practiceType}
+                          type="button"
+                          onClick={() => setEventFormData({ ...eventFormData, title: practiceType })}
+                          className={`py-3 px-4 rounded-xl border-2 text-sm font-bold transition-all ${
+                            eventFormData.title === practiceType
+                              ? 'bg-blue-100 text-blue-700 border-blue-300'
+                              : 'bg-white text-slate-400 border-slate-200'
+                          }`}
+                        >
+                          {practiceType}
+                        </button>
+                      ))}
+                    </div>
+                  ) : (
+                    <input
+                      type="text"
+                      value={eventFormData.title}
+                      onChange={(e) => setEventFormData({ ...eventFormData, title: e.target.value })}
+                      className="w-full bg-slate-50 border-0 rounded-xl px-4 py-3 focus:ring-2 focus:ring-purple-200"
+                      placeholder="例: 練習試合"
+                    />
+                  )}
                 </div>
 
                 {/* 日付 */}
