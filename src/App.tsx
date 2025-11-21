@@ -779,7 +779,8 @@ export default function App() {
                       {copySuccess ? <><Check className="w-5 h-5" /> コピーしました！</> : <><Share2 className="w-5 h-5" /> テキストをコピー</>}
                     </button>
                   </div>
-                ))
+                  );
+                })
               )}
             </div>
           );
