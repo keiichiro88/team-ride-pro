@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { useState, useEffect } from 'react';
-import { Car, Users, Share2, Plus, Trash2, X, ClipboardCheck, Settings, RotateCcw, Calendar, Save, Upload, GripVertical, Check, UserMinus, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { Car, Users, Share2, Plus, Trash2, X, ClipboardCheck, Settings, RotateCcw, Calendar, Save, Upload, GripVertical, Check, UserMinus, UserCheck, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import Login from './Login';
 
 // --- 車種別アイコン (High Quality SVGs) ---
