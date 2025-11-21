@@ -951,7 +951,7 @@ export default function App() {
           <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowEventModal(false)}>
             <div className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-bold text-slate-800">イベント追加</h3>
+                <h3 className="text-lg font-bold text-slate-800">{editingEvent ? 'イベント編集' : 'イベント追加'}</h3>
                 <button onClick={() => setShowEventModal(false)} className="text-slate-400 hover:text-slate-600">
                   <X className="w-5 h-5" />
                 </button>
@@ -1038,13 +1038,77 @@ export default function App() {
                   />
                 </div>
 
-                {/* 保存ボタン */}
-                <button
-                  onClick={saveEvent}
-                  className="w-full bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors"
-                >
-                  保存
-                </button>
+                {/* 繰り返し設定 (新規作成時のみ) */}
+                {!editingEvent && (
+                  <div className="border-t border-slate-200 pt-4">
+                    <label className="flex items-center gap-2 mb-3">
+                      <input
+                        type="checkbox"
+                        checked={eventFormData.isRecurring}
+                        onChange={(e) => setEventFormData({ ...eventFormData, isRecurring: e.target.checked })}
+                        className="w-4 h-4 text-purple-500 rounded focus:ring-2 focus:ring-purple-200"
+                      />
+                      <span className="text-xs font-bold text-slate-600">繰り返しスケジュール</span>
+                    </label>
+
+                    {eventFormData.isRecurring && (
+                      <div>
+                        <label className="text-xs font-bold text-slate-600 mb-2 block">曜日を選択（次の12週間分を生成）</label>
+                        <div className="grid grid-cols-7 gap-1">
+                          {['日', '月', '火', '水', '木', '金', '土'].map((day, index) => {
+                            const isSelected = eventFormData.recurringDays.includes(index);
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => {
+                                  const newDays = isSelected
+                                    ? eventFormData.recurringDays.filter(d => d !== index)
+                                    : [...eventFormData.recurringDays, index];
+                                  setEventFormData({ ...eventFormData, recurringDays: newDays });
+                                }}
+                                className={`py-2 px-1 text-xs font-bold rounded-lg transition-all ${
+                                  isSelected
+                                    ? index === 0
+                                      ? 'bg-red-500 text-white'
+                                      : index === 6
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-purple-500 text-white'
+                                    : 'bg-slate-100 text-slate-400'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ボタン */}
+                <div className="flex gap-2">
+                  {editingEvent && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        deleteEvent(editingEvent.id);
+                        setShowEventModal(false);
+                        setEditingEvent(null);
+                      }}
+                      className="flex-1 bg-red-500 text-white py-3 rounded-xl font-bold hover:bg-red-600 transition-colors"
+                    >
+                      削除
+                    </button>
+                  )}
+                  <button
+                    onClick={saveEvent}
+                    className={`${editingEvent ? 'flex-1' : 'w-full'} bg-purple-500 text-white py-3 rounded-xl font-bold hover:bg-purple-600 transition-colors`}
+                  >
+                    保存
+                  </button>
+                </div>
               </div>
             </div>
           </div>
