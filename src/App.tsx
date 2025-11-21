@@ -468,7 +468,7 @@ export default function App() {
         <div className="max-w-2xl mx-auto px-4 py-3 flex justify-between items-center">
           <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent flex items-center gap-2">
             <Car className="w-6 h-6 text-blue-600" />
-            Team Ride Pro
+            Little Brave Schedule管理Pro
           </h1>
           <div className="text-xs font-mono text-slate-400">v2.0 Local</div>
         </div>
