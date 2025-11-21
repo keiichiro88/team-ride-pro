@@ -1002,7 +1002,7 @@ export default function App() {
             if (targetCarId) {
               const targetCar = eventCars.find(c => c.id === targetCarId);
               const currentMembers = newAssignments[targetCarId] || [];
-              if (currentMembers.length < targetCar.capacity) {
+              if (currentMembers.length < targetCar.capacity - 1) { // 運転手分を除く
                 newAssignments[targetCarId] = [...currentMembers, memberId];
               }
             }
@@ -1155,8 +1155,8 @@ export default function App() {
                   <div className="grid gap-4 md:grid-cols-2">
                     {eventCars.map(car => {
                       const carMembers = eventAssignments[car.id] || [];
-                      const isFull = carMembers.length >= car.capacity;
-                      const vacancy = car.capacity - carMembers.length;
+                      const isFull = carMembers.length >= car.capacity - 1; // 運転手分を除く
+                      const vacancy = car.capacity - 1 - carMembers.length; // 運転手分を除く
 
                       return (
                         <div
