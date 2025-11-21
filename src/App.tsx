@@ -716,19 +716,23 @@ export default function App() {
             setTimeout(() => setCopySuccess(false), 2000);
           };
 
-          // 日付順にソート（近い順）
-          const sortedEvents = [...calendarEvents].sort((a, b) => new Date(a.date) - new Date(b.date));
+          // 今日以降のイベントのみをフィルタリングして日付順にソート（近い順）
+          const today = formatLocalDate(new Date());
+          const futureEvents = calendarEvents.filter(event => {
+            const eventEnd = event.endDate || event.date;
+            return eventEnd >= today;
+          }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
           return (
             <div className="space-y-6 animate-fadeIn">
-              {calendarEvents.length === 0 ? (
+              {futureEvents.length === 0 ? (
                 <div className="bg-white p-8 rounded-3xl shadow-sm border border-slate-100 text-center">
                   <Calendar className="w-16 h-16 mx-auto mb-4 text-slate-300" />
-                  <p className="text-slate-500 mb-2">まだイベントが登録されていません</p>
+                  <p className="text-slate-500 mb-2">未来の予定がありません</p>
                   <p className="text-xs text-slate-400">カレンダータブからイベントを追加してください</p>
                 </div>
               ) : (
-                sortedEvents.map(event => (
+                futureEvents.map(event => (
                   <div key={event.id} className="bg-white p-6 rounded-3xl shadow-sm border border-slate-100">
                     <h2 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800">
                       <div className="bg-blue-100 p-2 rounded-lg text-blue-600"><ClipboardCheck className="w-5 h-5" /></div>
