@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Clock, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
+import { Car, Users, Share2, Plus, Trash2, UserPlus, X, AlertCircle, ClipboardCheck, Settings, RotateCcw, Calendar, Megaphone, Backpack, Save, Upload, GripVertical, Check, UserCheck, UserMinus, ChevronLeft, ChevronRight, Edit2 } from 'lucide-react';
 
 // --- 車種別アイコン (High Quality SVGs) ---
 const CarIconMiniVan = () => (
@@ -480,7 +480,6 @@ export default function App() {
         <nav className="flex bg-white p-1.5 rounded-2xl shadow-sm border border-slate-100 sticky top-16 z-10 overflow-x-auto">
           {[
             { id: 'calendar', icon: Calendar, label: 'カレンダー' },
-            { id: 'schedule', icon: Clock, label: '予定' },
             { id: 'share', icon: Share2, label: '共有' },
             { id: 'settings', icon: Settings, label: '設定' },
           ].map(tab => (
