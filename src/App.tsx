@@ -136,6 +136,9 @@ export default function App() {
   const [touchStartPos, setTouchStartPos] = useState(null);
   const [touchDraggedElement, setTouchDraggedElement] = useState(null);
 
+  // 車選択モーダル用のstate
+  const [showCarSelectionModal, setShowCarSelectionModal] = useState(false);
+
   // --- Firebase Realtime Database統合 ---
   // ログイン後にFirebaseからデータを読み込み、リアルタイム同期を開始
   useEffect(() => {
@@ -1608,6 +1611,19 @@ export default function App() {
                       </div>
                     </div>
 
+                    {/* 選択中のメンバーがいる場合、配車先選択ボタンを表示 */}
+                    {selectedMemberIds.length > 0 && (
+                      <div className="mb-4">
+                        <button
+                          onClick={() => setShowCarSelectionModal(true)}
+                          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-2xl font-bold shadow-lg shadow-blue-200 hover:shadow-xl hover:scale-[1.02] transition-all flex items-center justify-center gap-2"
+                        >
+                          <Car className="w-5 h-5" />
+                          配車先を選択 ({selectedMemberIds.length}人)
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex flex-wrap gap-2 min-h-[60px]">
                       {eventUnassignedMembers.length === 0 && !draggedMemberId && (
                         <div className="w-full text-center text-slate-300 text-sm py-4">全員割り当て完了！</div>
@@ -1900,6 +1916,142 @@ export default function App() {
                     完了
                   </button>
                 </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* 車選択モーダル */}
+        {showCarSelectionModal && currentEventForCarAllocation && (() => {
+          const eventCars = currentEventForCarAllocation.cars || [];
+          const eventAssignments = currentEventForCarAllocation.assignments || {};
+
+          const assignMembersToCar = (carId) => {
+            const newAssignments = { ...eventAssignments };
+            const targetCar = eventCars.find(c => c.id === carId);
+
+            if (!targetCar) return;
+
+            // 容量チェック
+            const currentMembers = newAssignments[carId] || [];
+            const availableSpace = targetCar.capacity - 1 - currentMembers.length;
+
+            if (selectedMemberIds.length > availableSpace) {
+              alert(`容量不足です。\n空き: ${availableSpace}人\n移動: ${selectedMemberIds.length}人`);
+              return;
+            }
+
+            // 選択したメンバーを車に配置
+            selectedMemberIds.forEach(memberId => {
+              const member = members.find(m => m.id === memberId);
+              if (!member || !member.participating) return;
+
+              // 他の車から削除
+              Object.keys(newAssignments).forEach(cId => {
+                newAssignments[cId] = (newAssignments[cId] || []).filter(mid => mid !== memberId);
+              });
+
+              // 選択した車に追加
+              newAssignments[carId] = [...(newAssignments[carId] || []), memberId];
+            });
+
+            updateEventCarData(currentEventForCarAllocation.id, { assignments: newAssignments });
+            setSelectedMemberIds([]);
+            setShowCarSelectionModal(false);
+          };
+
+          return (
+            <div
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4"
+              onClick={() => setShowCarSelectionModal(false)}
+            >
+              <div
+                className="bg-white rounded-3xl p-6 max-w-md w-full max-h-[80vh] overflow-y-auto"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
+                  <Car className="w-6 h-6 text-blue-600" />
+                  配車先を選択
+                </h2>
+
+                <p className="text-sm text-slate-500 mb-4">
+                  選択中: <span className="font-bold text-blue-600">{selectedMemberIds.length}人</span>
+                  {selectedMemberIds.map(id => {
+                    const m = members.find(mem => mem.id === id);
+                    return m ? m.name : '';
+                  }).join('、')}
+                </p>
+
+                <div className="space-y-3 mb-6">
+                  {eventCars.length === 0 ? (
+                    <div className="text-center text-slate-400 py-8">
+                      <p className="text-sm">車が登録されていません</p>
+                    </div>
+                  ) : (
+                    eventCars.map(car => {
+                      const carMembers = eventAssignments[car.id] || [];
+                      const vacancy = car.capacity - 1 - carMembers.length;
+                      const isFull = vacancy < selectedMemberIds.length;
+
+                      return (
+                        <button
+                          key={car.id}
+                          onClick={() => !isFull && assignMembersToCar(car.id)}
+                          disabled={isFull}
+                          className={`w-full p-4 rounded-2xl border-2 text-left transition-all ${
+                            isFull
+                              ? 'bg-slate-50 border-slate-200 opacity-50 cursor-not-allowed'
+                              : 'bg-white border-blue-200 hover:border-blue-400 hover:bg-blue-50 hover:scale-[1.02] active:scale-[0.98]'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-12 h-8">{getCarIcon(car.capacity)}</div>
+                              <div>
+                                <div className="font-bold text-slate-800">{car.owner}号車</div>
+                                <div className="text-xs text-slate-500">{car.capacity}人乗り</div>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              {isFull ? (
+                                <span className="text-xs font-bold text-red-500 bg-red-50 px-2 py-1 rounded-full">
+                                  容量不足
+                                </span>
+                              ) : (
+                                <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full">
+                                  空き {vacancy}席
+                                </span>
+                              )}
+                            </div>
+                          </div>
+
+                          {carMembers.length > 0 && (
+                            <div className="mt-2 pt-2 border-t border-slate-100">
+                              <div className="text-xs text-slate-400 mb-1">乗車中:</div>
+                              <div className="flex flex-wrap gap-1">
+                                {carMembers.map(mid => {
+                                  const m = members.find(mem => mem.id === mid);
+                                  return m ? (
+                                    <span key={mid} className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full">
+                                      {m.name}
+                                    </span>
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+
+                <button
+                  onClick={() => setShowCarSelectionModal(false)}
+                  className="w-full bg-slate-100 text-slate-600 py-3 rounded-xl font-bold hover:bg-slate-200 transition-colors"
+                >
+                  キャンセル
+                </button>
               </div>
             </div>
           );
