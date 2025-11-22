@@ -1776,7 +1776,9 @@ export default function App() {
                                 id: Date.now(),
                                 owner: selectedCar.owner,
                                 capacity: selectedCar.capacity,
-                                note: selectedCar.note
+                                note: selectedCar.note,
+                                driver: selectedCar.driver || selectedCar.owner,
+                                familyMembers: selectedCar.familyMembers || []
                               };
 
                               updateEventCarData(currentEventForCarAllocation.id, {
@@ -1795,41 +1797,68 @@ export default function App() {
 
                     {/* 手動で追加 */}
                     <p className="text-xs text-slate-500 mb-2">手動で追加</p>
-                    <div className="flex gap-2">
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          placeholder="車の所有者"
+                          className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                          id={`eventCarOwner-${currentEventForCarAllocation.id}`}
+                        />
+                        <select
+                          className="bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                          id={`eventCarCapacity-${currentEventForCarAllocation.id}`}
+                          defaultValue="5"
+                        >
+                          <option value="4">4人乗り</option>
+                          <option value="5">5人乗り</option>
+                          <option value="6">6人乗り</option>
+                          <option value="7">7人乗り</option>
+                          <option value="8">8人乗り</option>
+                        </select>
+                      </div>
                       <input
                         type="text"
-                        placeholder="運転者名"
-                        className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                        id={`eventCarOwner-${currentEventForCarAllocation.id}`}
+                        placeholder="運転手 (未入力時は所有者)"
+                        className="w-full bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarDriver-${currentEventForCarAllocation.id}`}
                       />
-                      <select
-                        className="bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                        id={`eventCarCapacity-${currentEventForCarAllocation.id}`}
-                        defaultValue="4"
-                      >
-                        <option value="4">4人乗り</option>
-                        <option value="5">5人乗り</option>
-                        <option value="6">6人乗り</option>
-                        <option value="7">7人乗り</option>
-                        <option value="8">8人乗り</option>
-                      </select>
+                      <input
+                        type="text"
+                        placeholder="同乗家族 (カンマ区切り: 例 田中ママ,田中太郎)"
+                        className="w-full bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarFamilyMembers-${currentEventForCarAllocation.id}`}
+                      />
                       <button
                         onClick={() => {
                           const ownerInput = document.getElementById(`eventCarOwner-${currentEventForCarAllocation.id}`);
                           const capacitySelect = document.getElementById(`eventCarCapacity-${currentEventForCarAllocation.id}`);
+                          const driverInput = document.getElementById(`eventCarDriver-${currentEventForCarAllocation.id}`);
+                          const familyMembersInput = document.getElementById(`eventCarFamilyMembers-${currentEventForCarAllocation.id}`);
+
                           const owner = ownerInput.value.trim();
                           const capacity = parseInt(capacitySelect.value);
+                          const driver = driverInput.value.trim() || owner;
+                          const familyMembersStr = familyMembersInput.value.trim();
 
                           if (!owner) {
-                            alert('運転者名を入力してください');
+                            alert('車の所有者を入力してください');
                             return;
                           }
+
+                          // 同乗家族をカンマ区切りから配列に変換
+                          const familyMembersArray = familyMembersStr
+                            .split(',')
+                            .map(name => name.trim())
+                            .filter(name => name.length > 0);
 
                           const newCar = {
                             id: Date.now(),
                             owner,
                             capacity,
-                            note: capacity >= 7 ? 'ミニバン' : capacity >= 5 ? '乗用車' : '軽自動車'
+                            note: capacity >= 7 ? 'ミニバン' : capacity >= 5 ? '乗用車' : '軽自動車',
+                            driver,
+                            familyMembers: familyMembersArray
                           };
 
                           updateEventCarData(currentEventForCarAllocation.id, {
@@ -1837,8 +1866,10 @@ export default function App() {
                           });
 
                           ownerInput.value = '';
+                          driverInput.value = '';
+                          familyMembersInput.value = '';
                         }}
-                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors"
+                        className="w-full bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors"
                       >
                         追加
                       </button>
@@ -1901,6 +1932,66 @@ export default function App() {
                             >
                               <Trash2 className="w-3 h-3" />
                             </button>
+                          </div>
+
+                          {/* Family Members Section */}
+                          <div className="px-2 py-1.5 bg-green-50/50 border-b border-green-100">
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[9px] text-green-700 font-bold">👨‍👩‍👧‍👦 同乗家族 ({car.familyMembers ? car.familyMembers.length : 0})</p>
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const name = prompt('家族メンバーの名前を入力してください:');
+                                  if (name && name.trim()) {
+                                    const updatedCars = eventCars.map(c => {
+                                      if (c.id === car.id) {
+                                        return {
+                                          ...c,
+                                          familyMembers: [...(c.familyMembers || []), name.trim()]
+                                        };
+                                      }
+                                      return c;
+                                    });
+                                    updateEventCarData(currentEventForCarAllocation.id, { cars: updatedCars });
+                                  }
+                                }}
+                                className="text-[9px] bg-green-500 text-white px-1.5 py-0.5 rounded-full hover:bg-green-600 transition-colors"
+                              >
+                                + 追加
+                              </button>
+                            </div>
+                            {car.familyMembers && car.familyMembers.length > 0 && (
+                              <div className="flex flex-wrap gap-1">
+                                {car.familyMembers.map((familyMember, idx) => (
+                                  <div
+                                    key={idx}
+                                    className="px-1.5 py-0.5 rounded-lg text-[10px] font-medium bg-green-100 text-green-700 flex items-center gap-1"
+                                  >
+                                    <span>{familyMember}</span>
+                                    <button
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`${familyMember}を削除しますか？`)) {
+                                          const updatedCars = eventCars.map(c => {
+                                            if (c.id === car.id) {
+                                              return {
+                                                ...c,
+                                                familyMembers: c.familyMembers.filter((_, i) => i !== idx)
+                                              };
+                                            }
+                                            return c;
+                                          });
+                                          updateEventCarData(currentEventForCarAllocation.id, { cars: updatedCars });
+                                        }
+                                      }}
+                                      className="text-green-500 hover:text-red-500"
+                                    >
+                                      <X className="w-2.5 h-2.5" />
+                                    </button>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
 
                           {/* Car Members */}
