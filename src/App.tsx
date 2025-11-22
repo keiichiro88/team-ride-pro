@@ -82,7 +82,7 @@ export default function App() {
     { id: 16, name: '溝野翠葉', participating: true }, { id: 17, name: '林佑樹', participating: true }, { id: 18, name: '川内琉太郎', participating: true },
   ]);
   const [cars, setCars] = useState([
-    { id: 1, owner: '田中パパ', capacity: 5, note: '乗用車' },
+    { id: 1, owner: '田中パパ', capacity: 5, note: '乗用車', driver: '田中パパ', familyMembers: [] },
   ]);
   const [assignments, setAssignments] = useState({});
 
@@ -129,6 +129,8 @@ export default function App() {
   const [newCarOwner, setNewCarOwner] = useState('');
   const [newCarCapacity, setNewCarCapacity] = useState(4);
   const [newCarNote, setNewCarNote] = useState('');
+  const [newCarDriver, setNewCarDriver] = useState('');
+  const [newCarFamilyMembers, setNewCarFamilyMembers] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState(null);
 
@@ -455,9 +457,26 @@ export default function App() {
   const addCar = () => {
     if (!newCarOwner.trim()) return;
     const newId = Date.now();
-    setCars([...cars, { id: newId, owner: newCarOwner, capacity: Number(newCarCapacity), note: newCarNote }]);
+
+    // 同乗家族をカンマ区切りから配列に変換
+    const familyMembersArray = newCarFamilyMembers
+      .split(',')
+      .map(name => name.trim())
+      .filter(name => name.length > 0);
+
+    setCars([...cars, {
+      id: newId,
+      owner: newCarOwner,
+      capacity: Number(newCarCapacity),
+      note: newCarNote,
+      driver: newCarDriver.trim() || newCarOwner, // 運転手が未入力なら所有者を使用
+      familyMembers: familyMembersArray
+    }]);
+
     setNewCarOwner('');
     setNewCarNote('');
+    setNewCarDriver('');
+    setNewCarFamilyMembers('');
   };
   const deleteCar = (id) => {
     if (!window.confirm('削除しますか？')) return;
@@ -921,7 +940,24 @@ export default function App() {
               eventCars.forEach(car => {
                 const carMembers = eventAssignments[car.id] || [];
                 const names = carMembers.map(mid => members.find(m => m.id === mid)?.name || '不明').join('、');
-                report += `【${car.owner}号車】(${carMembers.length}/${car.capacity - 1})${car.note ? ` ※${car.note}` : ''}\n`;
+
+                // 運転手(1) + 同乗家族 + メンバー
+                const familyCount = car.familyMembers ? car.familyMembers.length : 0;
+                const usedSeats = 1 + familyCount + carMembers.length;
+
+                report += `【${car.owner}号車】(${usedSeats}/${car.capacity}人)${car.note ? ` ※${car.note}` : ''}\n`;
+
+                // 運転手を表示
+                if (car.driver) {
+                  report += `🚗 運転手: ${car.driver}\n`;
+                }
+
+                // 同乗家族を表示
+                if (car.familyMembers && car.familyMembers.length > 0) {
+                  report += `👨‍👩‍👧‍👦 同乗家族: ${car.familyMembers.join('、')}\n`;
+                }
+
+                // メンバーを表示
                 report += carMembers.length > 0 ? `メンバー: ${names}\n` : `メンバー: なし\n`;
                 report += `\n`;
               });
@@ -1093,23 +1129,41 @@ export default function App() {
                       <input type="text" placeholder="所有者" className="flex-1 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarOwner} onChange={(e) => setNewCarOwner(e.target.value)} />
                       <input type="number" placeholder="定員" className="w-20 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarCapacity} onChange={(e) => setNewCarCapacity(e.target.value)} />
                    </div>
+                   <input type="text" placeholder="運転手 (未入力時は所有者)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarDriver} onChange={(e) => setNewCarDriver(e.target.value)} />
+                   <input type="text" placeholder="同乗家族 (カンマ区切り: 例 田中ママ,田中太郎)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarFamilyMembers} onChange={(e) => setNewCarFamilyMembers(e.target.value)} />
                    <input type="text" placeholder="メモ (荷物車など)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarNote} onChange={(e) => setNewCarNote(e.target.value)} />
                    <button onClick={addCar} className="w-full bg-emerald-500 text-white py-2 rounded-xl font-bold shadow-md shadow-emerald-200">追加</button>
                 </div>
               )}
               <div className="space-y-2">
                 {cars.map(c => (
-                    <div key={c.id} className="flex justify-between items-center bg-white border border-slate-100 px-4 py-3 rounded-xl">
-                        <div className="flex items-center gap-3">
-                            <div className="w-12 h-8">{getCarIcon(c.capacity)}</div>
-                            <div>
+                    <div key={c.id} className="bg-white border border-slate-100 px-4 py-3 rounded-xl">
+                        <div className="flex justify-between items-start">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div className="w-12 h-8 mt-1">{getCarIcon(c.capacity)}</div>
+                            <div className="flex-1">
                                 <div className="text-sm font-bold text-slate-800">{c.owner}号車</div>
-                                <div className="text-xs text-slate-400">{c.capacity}人乗り {c.note}</div>
+                                <div className="text-xs text-slate-400 mb-2">{c.capacity}人乗り {c.note}</div>
+                                {c.driver && (
+                                  <div className="text-xs mb-1">
+                                    <span className="text-slate-500">運転手:</span>
+                                    <span className="ml-1 font-medium text-slate-700">{c.driver}</span>
+                                  </div>
+                                )}
+                                {c.familyMembers && c.familyMembers.length > 0 && (
+                                  <div className="text-xs">
+                                    <span className="text-slate-500">同乗家族:</span>
+                                    <span className="ml-1 font-medium text-slate-700">
+                                      {c.familyMembers.join('、')} ({c.familyMembers.length}人)
+                                    </span>
+                                  </div>
+                                )}
                             </div>
+                          </div>
+                          {isAdmin && (
+                            <button onClick={() => deleteCar(c.id)} className="text-slate-300 hover:text-red-500 ml-2"><Trash2 className="w-4 h-4" /></button>
+                          )}
                         </div>
-                        {isAdmin && (
-                          <button onClick={() => deleteCar(c.id)} className="text-slate-300 hover:text-red-500"><Trash2 className="w-4 h-4" /></button>
-                        )}
                     </div>
                 ))}
               </div>
@@ -1795,8 +1849,11 @@ export default function App() {
                   <div className="grid gap-3 grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                     {eventCars.map(car => {
                       const carMembers = eventAssignments[car.id] || [];
-                      const isFull = carMembers.length >= car.capacity - 1; // 運転手分を除く
-                      const vacancy = car.capacity - 1 - carMembers.length; // 運転手分を除く
+                      // 運転手(1) + 同乗家族 + 配車されたメンバー
+                      const familyCount = car.familyMembers ? car.familyMembers.length : 0;
+                      const usedSeats = 1 + familyCount + carMembers.length; // 運転手 + 同乗家族 + メンバー
+                      const vacancy = car.capacity - usedSeats;
+                      const isFull = vacancy <= 0;
 
                       return (
                         <div
@@ -1818,7 +1875,17 @@ export default function App() {
                             </div>
                             <div className="w-16 h-10 mx-auto mb-1">{getCarIcon(car.capacity)}</div>
                             <h3 className="font-bold text-xs text-slate-800">{car.owner}<span className="text-[10px] font-normal text-slate-400">号車</span></h3>
-                            <p className="text-[10px] text-slate-400">{car.capacity}人乗</p>
+                            <p className="text-[10px] text-slate-400">{car.capacity}人乗 ({usedSeats}/{car.capacity}人)</p>
+                            {car.driver && (
+                              <p className="text-[9px] text-blue-600 mt-1">
+                                🚗 {car.driver}
+                              </p>
+                            )}
+                            {car.familyMembers && car.familyMembers.length > 0 && (
+                              <p className="text-[9px] text-green-600">
+                                👨‍👩‍👧‍👦 {car.familyMembers.join('、')}
+                              </p>
+                            )}
                             <button
                               onClick={() => {
                                 if (window.confirm('この車を削除しますか？')) {
@@ -1934,7 +2001,9 @@ export default function App() {
 
             // 容量チェック
             const currentMembers = newAssignments[carId] || [];
-            const availableSpace = targetCar.capacity - 1 - currentMembers.length;
+            const familyCount = targetCar.familyMembers ? targetCar.familyMembers.length : 0;
+            const currentUsedSeats = 1 + familyCount + currentMembers.length; // 運転手 + 同乗家族 + 現在のメンバー
+            const availableSpace = targetCar.capacity - currentUsedSeats;
 
             if (selectedMemberIds.length > availableSpace) {
               alert(`容量不足です。\n空き: ${availableSpace}人\n移動: ${selectedMemberIds.length}人`);
@@ -1990,7 +2059,10 @@ export default function App() {
                   ) : (
                     eventCars.map(car => {
                       const carMembers = eventAssignments[car.id] || [];
-                      const vacancy = car.capacity - 1 - carMembers.length;
+                      // 運転手(1) + 同乗家族 + 現在のメンバー + 選択中のメンバー
+                      const familyCount = car.familyMembers ? car.familyMembers.length : 0;
+                      const currentUsedSeats = 1 + familyCount + carMembers.length;
+                      const vacancy = car.capacity - currentUsedSeats;
                       const isFull = vacancy < selectedMemberIds.length;
 
                       return (
