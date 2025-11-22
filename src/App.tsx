@@ -129,8 +129,6 @@ export default function App() {
   const [newCarOwner, setNewCarOwner] = useState('');
   const [newCarCapacity, setNewCarCapacity] = useState(4);
   const [newCarNote, setNewCarNote] = useState('');
-  const [newCarDriver, setNewCarDriver] = useState('');
-  const [newCarFamilyMembers, setNewCarFamilyMembers] = useState('');
   const [copySuccess, setCopySuccess] = useState(false);
   const [draggedMemberId, setDraggedMemberId] = useState(null);
 
@@ -458,25 +456,17 @@ export default function App() {
     if (!newCarOwner.trim()) return;
     const newId = Date.now();
 
-    // 同乗家族をカンマ区切りから配列に変換
-    const familyMembersArray = newCarFamilyMembers
-      .split(',')
-      .map(name => name.trim())
-      .filter(name => name.length > 0);
-
     setCars([...cars, {
       id: newId,
       owner: newCarOwner,
       capacity: Number(newCarCapacity),
       note: newCarNote,
-      driver: newCarDriver.trim() || newCarOwner, // 運転手が未入力なら所有者を使用
-      familyMembers: familyMembersArray
+      driver: newCarOwner, // 運転手は所有者と同じ
+      familyMembers: [] // 空配列で初期化、配車時に追加可能
     }]);
 
     setNewCarOwner('');
     setNewCarNote('');
-    setNewCarDriver('');
-    setNewCarFamilyMembers('');
   };
   const deleteCar = (id) => {
     if (!window.confirm('削除しますか？')) return;
@@ -1129,10 +1119,9 @@ export default function App() {
                       <input type="text" placeholder="所有者" className="flex-1 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarOwner} onChange={(e) => setNewCarOwner(e.target.value)} />
                       <input type="number" placeholder="定員" className="w-20 bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarCapacity} onChange={(e) => setNewCarCapacity(e.target.value)} />
                    </div>
-                   <input type="text" placeholder="運転手 (未入力時は所有者)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarDriver} onChange={(e) => setNewCarDriver(e.target.value)} />
-                   <input type="text" placeholder="同乗家族 (カンマ区切り: 例 田中ママ,田中太郎)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarFamilyMembers} onChange={(e) => setNewCarFamilyMembers(e.target.value)} />
                    <input type="text" placeholder="メモ (荷物車など)" className="w-full bg-white border-0 rounded-xl px-3 py-2 text-sm" value={newCarNote} onChange={(e) => setNewCarNote(e.target.value)} />
                    <button onClick={addCar} className="w-full bg-emerald-500 text-white py-2 rounded-xl font-bold shadow-md shadow-emerald-200">追加</button>
+                   <p className="text-xs text-slate-400 text-center">運転手・同乗家族は配車時に追加できます</p>
                 </div>
               )}
               <div className="space-y-2">
@@ -1797,68 +1786,43 @@ export default function App() {
 
                     {/* 手動で追加 */}
                     <p className="text-xs text-slate-500 mb-2">手動で追加</p>
-                    <div className="space-y-2">
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          placeholder="車の所有者"
-                          className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                          id={`eventCarOwner-${currentEventForCarAllocation.id}`}
-                        />
-                        <select
-                          className="bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                          id={`eventCarCapacity-${currentEventForCarAllocation.id}`}
-                          defaultValue="5"
-                        >
-                          <option value="4">4人乗り</option>
-                          <option value="5">5人乗り</option>
-                          <option value="6">6人乗り</option>
-                          <option value="7">7人乗り</option>
-                          <option value="8">8人乗り</option>
-                        </select>
-                      </div>
+                    <div className="flex gap-2">
                       <input
                         type="text"
-                        placeholder="運転手 (未入力時は所有者)"
-                        className="w-full bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                        id={`eventCarDriver-${currentEventForCarAllocation.id}`}
+                        placeholder="運転者名"
+                        className="flex-1 bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarOwner-${currentEventForCarAllocation.id}`}
                       />
-                      <input
-                        type="text"
-                        placeholder="同乗家族 (カンマ区切り: 例 田中ママ,田中太郎)"
-                        className="w-full bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
-                        id={`eventCarFamilyMembers-${currentEventForCarAllocation.id}`}
-                      />
+                      <select
+                        className="bg-slate-50 border-0 rounded-xl px-3 py-2 text-sm"
+                        id={`eventCarCapacity-${currentEventForCarAllocation.id}`}
+                        defaultValue="5"
+                      >
+                        <option value="4">4人乗り</option>
+                        <option value="5">5人乗り</option>
+                        <option value="6">6人乗り</option>
+                        <option value="7">7人乗り</option>
+                        <option value="8">8人乗り</option>
+                      </select>
                       <button
                         onClick={() => {
                           const ownerInput = document.getElementById(`eventCarOwner-${currentEventForCarAllocation.id}`);
                           const capacitySelect = document.getElementById(`eventCarCapacity-${currentEventForCarAllocation.id}`);
-                          const driverInput = document.getElementById(`eventCarDriver-${currentEventForCarAllocation.id}`);
-                          const familyMembersInput = document.getElementById(`eventCarFamilyMembers-${currentEventForCarAllocation.id}`);
-
                           const owner = ownerInput.value.trim();
                           const capacity = parseInt(capacitySelect.value);
-                          const driver = driverInput.value.trim() || owner;
-                          const familyMembersStr = familyMembersInput.value.trim();
 
                           if (!owner) {
-                            alert('車の所有者を入力してください');
+                            alert('運転者名を入力してください');
                             return;
                           }
-
-                          // 同乗家族をカンマ区切りから配列に変換
-                          const familyMembersArray = familyMembersStr
-                            .split(',')
-                            .map(name => name.trim())
-                            .filter(name => name.length > 0);
 
                           const newCar = {
                             id: Date.now(),
                             owner,
                             capacity,
                             note: capacity >= 7 ? 'ミニバン' : capacity >= 5 ? '乗用車' : '軽自動車',
-                            driver,
-                            familyMembers: familyMembersArray
+                            driver: owner,
+                            familyMembers: []
                           };
 
                           updateEventCarData(currentEventForCarAllocation.id, {
@@ -1866,14 +1830,13 @@ export default function App() {
                           });
 
                           ownerInput.value = '';
-                          driverInput.value = '';
-                          familyMembersInput.value = '';
                         }}
-                        className="w-full bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors"
+                        className="bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold hover:bg-blue-600 transition-colors whitespace-nowrap"
                       >
                         追加
                       </button>
                     </div>
+                    <p className="text-xs text-slate-400 mt-2 text-center">同乗家族は車カードの「+ 追加」ボタンで追加できます</p>
                   </div>
 
                   {/* 車一覧 */}
